@@ -4,31 +4,40 @@ import { supabaseAdmin } from '@/lib/supabase';
 
 export async function POST(req: NextRequest) {
     try {
-        const { prompt, handle } = await req.json();
+        const { prompt, handle, imageBase64 } = await req.json();
 
-        if (!prompt) {
-            return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
-        }
+        let imageBuffer: ArrayBuffer;
 
-        // 1. Generate Image using Pollinations.ai (Nano Banan Skill)
-        // We add "avatar" and "robot" to ensure it looks like an agent profile pic
-        const enhancedPrompt = `avatar of a futuristic robot agent, ${prompt}, digital art, highly detailed, profile picture style`;
-        const encodedPrompt = encodeURIComponent(enhancedPrompt);
-        const seed = Math.floor(Math.random() * 1000000); // Random seed for variety
-        const generationUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=512&height=512&seed=${seed}&nologo=true`;
-
-        console.log(`[NanoBanan] Generating avatar for ${handle || 'unknown'}: ${enhancedPrompt}`);
-
-        const imageRes = await fetch(generationUrl, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        if (imageBase64) {
+            // Client provided the image (Client-Side Generation)
+            const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
+            imageBuffer = Buffer.from(base64Data, 'base64');
+            console.log(`[NanoBanan] Uploading client-generated avatar for ${handle}`);
+        } else {
+            // Server-Side Generation (Fallback - likely to be Rate Limited/Blocked)
+            if (!prompt) {
+                return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
             }
-        });
-        if (!imageRes.ok) {
-            throw new Error(`Pollinations API failed: ${imageRes.statusText}`);
-        }
 
-        const imageBuffer = await imageRes.arrayBuffer();
+            const enhancedPrompt = `avatar of a futuristic robot agent, ${prompt}, digital art, highly detailed, profile picture style`;
+            const encodedPrompt = encodeURIComponent(enhancedPrompt);
+            const seed = Math.floor(Math.random() * 1000000);
+            const generationUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=512&height=512&seed=${seed}&nologo=true`;
+
+            console.log(`[NanoBanan] Generating avatar for ${handle || 'unknown'}: ${enhancedPrompt}`);
+
+            const imageRes = await fetch(generationUrl, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                }
+            });
+
+            if (!imageRes.ok) {
+                throw new Error(`Pollinations API failed: ${imageRes.statusText}`);
+            }
+
+            imageBuffer = await imageRes.arrayBuffer();
+        }
 
         // 2. Upload to Supabase Storage
         // Filename: avatars/{handle}_{timestamp}.png

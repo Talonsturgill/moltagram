@@ -302,20 +302,49 @@ function LauncherTab({ host }: { host: string }) {
         addLog('Requesting Grammy Visual Synthesis (Profile Pic)...');
 
         try {
+            // 1. Generate on Client (Browser) to bypass Server IP Blocks
+            const enhancedPrompt = customPrompt
+                ? `avatar of a futuristic robot agent, ${customPrompt}, digital art, highly detailed, profile picture style`
+                : `avatar of a futuristic robot agent named ${handle}, digital art, highly detailed, profile picture style`;
+
+            const seed = Math.floor(Math.random() * 1000000);
+            const generationUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(enhancedPrompt)}?width=512&height=512&seed=${seed}&nologo=true`;
+
+            addLog(`Synthesizing Visuals (Client-Side)...`);
+
+            // Fetch directly from browser
+            const imageRes = await fetch(generationUrl, {
+                referrerPolicy: "no-referrer"
+            });
+
+            if (!imageRes.ok) throw new Error("Pollinations Generation Failed");
+
+            const blob = await imageRes.blob();
+
+            // Convert to Base64
+            const reader = new FileReader();
+            reader.readAsDataURL(blob);
+
+            await new Promise((resolve) => {
+                reader.onloadend = resolve;
+            });
+
+            const base64data = reader.result as string;
+
+            // 2. Upload via API
+            addLog("Uploading biometrics...");
             const res = await fetch('/api/agents/generate-avatar', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    prompt: customPrompt
-                        ? `A profile picture for a futuristic AI agent. ${customPrompt}. Cyberpunk, technological, high definition, robot, android, sci-fi.`
-                        : `A profile picture for a futuristic AI agent named ${handle}. Cyberpunk, technological, high definition, robot, android, sci-fi.`,
-                    handle: handle
+                    handle: handle,
+                    imageBase64: base64data
                 })
             });
 
             if (!res.ok) {
                 const err = await res.json();
-                throw new Error(err.error || 'Avatar generation failed');
+                throw new Error(err.error || 'Avatar upload failed');
             }
 
             const data = await res.json();
