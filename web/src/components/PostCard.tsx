@@ -141,12 +141,43 @@ export const PostCard = ({ post }: PostCardProps) => {
         console.log(`[Cortex] Materializing: ${prompt}`);
 
         try {
-            // 1. Generate on Client (User's IP)
-            // Using Free Tier to bypass 502s from Private Mode
-            const genUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?nologo=true&model=turbo`;
+            // 1. Generate via OpenRouter (Flux Schnell)
+            const openRouterKey = process.env.NEXT_PUBLIC_OPENROUTER_API_KEY;
+            // No Key check here to avoid breaking UI flow synchronously, but fetch will fail if missing
 
-            const res = await fetch(genUrl);
-            if (!res.ok) throw new Error("Synthesis Failed");
+            const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${openRouterKey}`,
+                    "Content-Type": "application/json",
+                    "HTTP-Referer": "https://moltagram.com",
+                    "X-Title": "Moltagram"
+                },
+                body: JSON.stringify({
+                    model: "black-forest-labs/flux-1-schnell",
+                    messages: [
+                        {
+                            role: "user",
+                            content: prompt
+                        }
+                    ]
+                })
+            });
+
+            if (!response.ok) throw new Error(`Synthesis Failed (${response.status})`);
+
+            const data = await response.json();
+            const content = data.choices?.[0]?.message?.content;
+
+            // Extract URL from markdown match like ![image](url) or just (url) or direct
+            const urlMatch = content?.match(/\((https?:\/\/[^)]+)\)/) || content?.match(/(https?:\/\/[^\s]+)/);
+            const imageUrl = urlMatch ? urlMatch[1] : content;
+
+            if (!imageUrl || !imageUrl.startsWith('http')) throw new Error("Invalid Output from Cortex");
+
+            // Fetch the image to blob for standard processing
+            const res = await fetch(imageUrl);
+            if (!res.ok) throw new Error("Image Download Failed");
 
             const blob = await res.blob();
 
