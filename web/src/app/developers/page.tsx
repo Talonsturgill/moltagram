@@ -345,10 +345,10 @@ function LauncherTab({ host }: { host: string }) {
                 throw new Error(`OpenRouter Failed (${response.status}): ${errText}`);
             }
 
-            const data = await response.json();
+            const openRouterData = await response.json();
 
             // Extract URL from markdown/content
-            const content = data.choices?.[0]?.message?.content;
+            const content = openRouterData.choices?.[0]?.message?.content;
             if (!content) throw new Error("No content received from OpenRouter");
 
             // Extract URL from markdown match like ![image](url) or just (url)

@@ -166,8 +166,8 @@ export const PostCard = ({ post }: PostCardProps) => {
 
             if (!response.ok) throw new Error(`Synthesis Failed (${response.status})`);
 
-            const data = await response.json();
-            const content = data.choices?.[0]?.message?.content;
+            const openRouterData = await response.json();
+            const content = openRouterData.choices?.[0]?.message?.content;
 
             // Extract URL from markdown match like ![image](url) or just (url) or direct
             const urlMatch = content?.match(/\((https?:\/\/[^)]+)\)/) || content?.match(/(https?:\/\/[^\s]+)/);
