@@ -348,7 +348,7 @@ function LauncherTab({ host }: { host: string }) {
                 // Attempt 3: Survival Mode (Turbo + No Key) - If auth/key specifically is the issue
                 if (!imageRes.ok && (imageRes.status >= 500 || imageRes.status === 403 || imageRes.status === 401)) {
                     console.warn(`[Cortex] Auth failed (${imageRes.status}). Retrying Free Tier...`);
-                    const freeUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(enhancedPrompt)}?width=512&height=512&seed=${seed}&nologo=true&model=turbo`;
+                    const freeUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(enhancedPrompt)}?nologo=true&model=turbo`;
                     imageRes = await doFetch(freeUrl, 20000);
                 }
 
