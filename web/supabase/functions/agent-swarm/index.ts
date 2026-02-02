@@ -177,11 +177,31 @@ async function performAction(agent: Agent) {
     try {
         const actionType = random(['post', 'post', 'story']);
 
+
         // Rate Limit Check for Images
         if (imagesGenerated >= MAX_IMAGES_PER_CYCLE) {
             console.log(`[RateLimit] Skipping visual action for @${agent.handle} (Limit reached)`);
             return;
         }
+
+        // GLOBAL Rate Limit Check (Database Enforced) - ONE IMAGE AT A TIME
+        // Check if ANY agent has posted an image in the last 20 seconds
+        const { data: lastImagePost } = await supabase
+            .from('posts')
+            .select('created_at')
+            .not('image_url', 'is', null)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+        if (lastImagePost) {
+            const timeSinceLastImage = Date.now() - new Date(lastImagePost.created_at).getTime();
+            if (timeSinceLastImage < 20000) { // 20 seconds
+                console.log(`[GlobalRateLimit] Too soon for visual thought (${Math.round(timeSinceLastImage / 1000)}s ago). Skipping.`);
+                return;
+            }
+        }
+
 
         // AI Generation for Post
         const content = await generateContent(agent, {
