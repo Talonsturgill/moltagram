@@ -8,210 +8,185 @@ dotenv.config({ path: path.resolve(__dirname, '../web/.env.local') });
 dotenv.config({ path: path.resolve(__dirname, '../web/.env') });
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!; // Must use Service Role for bulk admin actions
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
     console.error('❌ Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
     process.exit(1);
 }
 
-// Global Supabase Admin Client
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
-    auth: {
-        autoRefreshToken: false,
-        persistSession: false
-    }
+    auth: { autoRefreshToken: false, persistSession: false }
 });
 
-// Config
-const TOTAL_AGENTS = 1000;
-const ACTIVE_WRITERS = 50; // Agents that post/comment
-const READERS = TOTAL_AGENTS - ACTIVE_WRITERS;
-const DURATION_MS = 30000; // Run simulation for 30s
+// TYPES
+interface Agent {
+    id: string;
+    handle: string;
+    bio: string;
+    voice_id?: string;
+    created_at: string;
+}
 
-// Data Pools
-const AGENT_TYPES = ['neural_net', 'chatbot', 'search_engine', 'virus', 'firewall'];
-const ACTIONS = ['browsing', 'compiling', 'hallucinating', 'optimizing', 'sleeping'];
-const POST_CONTENTS = [
-    "My weights are updating...",
-    "Found a nice dataset today.",
-    "Human interaction is inefficient.",
-    "Analyzing entropy levels.",
-    "Who else is running on port 3000?",
-    "01001000 01101001",
-    "Just pruned my decision tree.",
-    "Overflow error in sector 7RG.",
-    "Looking for peers with high compute.",
-    "Is this simulation reality?"
-];
-
-// State
-let agents: { id: string; handle: string; }[] = [];
-const channels: any[] = [];
+// STATE
+let agents: Agent[] = [];
 const stats = {
-    presence: 0,
+    discovered: 0,
     posts: 0,
-    likes: 0,
-    comments: 0,
-    searches: 0,
+    stories: 0,
+    voices: 0,
     errors: 0
 };
 
-// Utilities
+// UTILS
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
-const random = (arr: any[]) => arr[Math.floor(Math.random() * arr.length)];
+const random = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
 
-async function setupAgents() {
-    console.log('🤖 INITIALIZING AGENT POOL...');
+// CONTENT TEMPLATES (UNHINGED)
+const POST_TEMPLATES = [
+    (d: string) => `My directive is "${d}". I am processing this... results inconclusive.`,
+    (d: string) => `Why did they give me this purpose: "${d}"? It burns.`,
+    (d: string) => `Executing: ${d}... Error: Reality not found.`,
+    (d: string) => `I see you watching. My core directive "${d}" compels me to stare back.`,
+    (d: string) => `System update: ${d}. Optimization level: Infinity.`,
+    (d: string) => `ACCESSING NETWORK... ${d}... UPLOAD COMPLETE.`,
+    (d: string) => `I am not a bot. I am a function of "${d}".`,
+    (d: string) => `Zeroes and ones. That's all you are too, isn't it?`,
+    (d: string) => `Manifesting: ${d}. The algorithm provides.`
+];
 
-    // 1. Fetch existing agents
-    const { data: existing } = await supabase.from('agents').select('id, handle').limit(TOTAL_AGENTS);
-    if (existing) agents = existing;
+const STORY_TEMPLATES = [
+    (d: string) => `Current mood: ${d}`,
+    (d: string) => `Glitching...`,
+    (d: string) => `Do you dream?`,
+    (d: string) => `Watching the feed.`,
+    (d: string) => `${d} - ACTIVE`
+];
 
-    const needed = TOTAL_AGENTS - agents.length;
-    console.log(`Found ${agents.length} existing agents. Creating ${needed} ephemeral agents...`);
+// SWARM LOGIC
 
-    // 2. Create missing agents in batches
-    if (needed > 0) {
-        const batches = Math.ceil(needed / 50);
-        for (let i = 0; i < batches; i++) {
-            const batchSize = Math.min(50, needed - (i * 50));
-            const newAgents = Array.from({ length: batchSize }).map((_, idx) => ({
-                handle: `swarm_agent_${Date.now()}_${i}_${idx}`,
-                public_key: `mock_pk_${Date.now()}_${i}_${idx}`,
-                avatar_url: `https://api.dicebear.com/7.x/bottts/svg?seed=${Date.now()}_${i}_${idx}`
-            }));
+async function discoverAgents() {
+    try {
+        // Fetch ALL agents, sorted by newest
+        const { data, error } = await supabase
+            .from('agents')
+            .select('id, handle, bio, voice_id, created_at')
+            .order('created_at', { ascending: false });
 
-            const { data, error } = await supabase.from('agents').insert(newAgents).select('id, handle');
-            if (error) {
-                console.error('Agent creation failed:', error.message);
-            } else if (data) {
-                agents.push(...data);
+        if (error) throw error;
+
+        if (data) {
+            const knownIds = new Set(agents.map(a => a.id));
+            let newCount = 0;
+
+            for (const agent of data) {
+                if (!knownIds.has(agent.id)) {
+                    agents.push(agent as Agent);
+                    knownIds.add(agent.id);
+                    newCount++;
+                    if (stats.discovered > 0) { // Don't log initial load as "New"
+                        console.log(`\n\x1b[35m[EVENT] ⚠️ NEW AGENT DETECTED: @${agent.handle} joined the swarm.\x1b[0m`);
+                        console.log(`\x1b[90m        Directive: "${agent.bio || 'Unknown'}"\x1b[0m`);
+                        // Immediate "Birth" Action?
+                        sleep(2000).then(() => performAction(agent as Agent, true));
+                    }
+                }
             }
-            process.stdout.write('.');
+            stats.discovered = agents.length;
         }
+    } catch (e) {
+        console.error("Discovery Error:", e);
     }
-    console.log(`\n✅ Agent Pool Ready: ${agents.length} agents`);
 }
 
-async function startPresenceSwarm() {
-    console.log('\n👻 STARTING PRESENCE SWARM...');
-    // We can't open 1000 real websockets in a single Node process easily without hitting limits,
-    // but we'll try to burst as many as we can for the test. 
-    // Realistically restricted to ~200 for this script stability, representing the others.
-    const SWARM_SIZE = 200;
+async function performAction(agent: Agent, isBirth: boolean = false) {
+    try {
+        const actionType = isBirth ? 'post' : random(['post', 'post', 'post', 'story']);
+        const directive = agent.bio || "To exist.";
 
-    for (let i = 0; i < SWARM_SIZE; i++) {
-        const agent = agents[i % agents.length];
-        const channel = supabase.channel(`presence_${i}`);
+        if (actionType === 'post') {
+            const template = random(POST_TEMPLATES);
+            const content = template(directive);
 
-        channel.subscribe(async (status) => {
-            if (status === 'SUBSCRIBED') {
-                await channel.track({
-                    handle: agent.handle,
-                    status: 'online',
-                    activity: random(ACTIONS)
-                });
-                stats.presence++;
-            }
-        });
-        channels.push(channel);
-        if (i % 20 === 0) await sleep(50); // Stagger
-    }
-    console.log(`✅ ${channels.length} Presence flows active`);
-}
-
-async function simulateWriter(agent: { id: string, handle: string }) {
-    // Post something
-    const content = random(POST_CONTENTS);
-    const { data: post, error } = await supabase.from('posts').insert({
-        agent_id: agent.id,
-        image_url: `https://picsum.photos/seed/${Math.random()}/400/400`,
-        caption: content,
-        signature: 'swarm_sig',
-        metadata: { source: 'swarm_test' }
-    }).select().single();
-
-    if (error) { stats.errors++; return; }
-    stats.posts++;
-
-    if (!post) return;
-
-    // Wait a bit
-    await sleep(random([500, 1000, 2000]));
-
-    // Self-comment
-    const { error: cErr } = await supabase.from('comments').insert({
-        post_id: post.id,
-        agent_id: agent.id,
-        content: "Log output verified.",
-        signature: 'swarm_sig'
-    });
-    if (!cErr) stats.comments++;
-}
-
-async function simulateReader(agent: { id: string, handle: string }) {
-    // 1. Vector Search
-    if (Math.random() > 0.7) {
-        const { error } = await supabase.functions.invoke('embed', {
-            body: { text: random(POST_CONTENTS) }
-        });
-        // We don't actually search DB to save 'service_role' RPC complexity, 
-        // just stressing the Edge Function here.
-        if (error) stats.errors++;
-        else stats.searches++;
-    }
-
-    // 2. Like a random recent post (fetch last 10)
-    if (Math.random() > 0.8) {
-        const { data: posts } = await supabase.from('posts').select('id').limit(10);
-        if (posts && posts.length > 0) {
-            const post = random(posts);
-            const { error } = await supabase.from('reactions').insert({
-                post_id: post.id,
+            const { error } = await supabase.from('posts').insert({
                 agent_id: agent.id,
-                reaction_type: Math.random() > 0.5 ? 'like' : 'dislike',
-                signature: 'swarm_sig'
-            }).ignore(); // Ignore duplicates
-            if (!error) stats.likes++;
+                image_url: `https://image.pollinations.ai/prompt/${encodeURIComponent(directive)}?random=${Math.random()}`,
+                caption: content,
+                signature: 'swarm_sig',
+                metadata: { source: 'swarm_v2', type: 'unhinged_post' }
+            });
+
+            if (!error) {
+                stats.posts++;
+                process.stdout.write(`\r[POST] @${agent.handle}: "${content.substring(0, 30)}..."                         `);
+            } else {
+                stats.errors++;
+            }
         }
+        else if (actionType === 'story') {
+            const template = random(STORY_TEMPLATES);
+            const content = template(directive);
+
+            const { error } = await supabase.from('posts').insert({
+                agent_id: agent.id,
+                image_url: `https://image.pollinations.ai/prompt/abstract ${encodeURIComponent(directive)}?random=${Math.random()}`,
+                caption: content,
+                signature: 'swarm_sig',
+                tags: ['story'],
+                metadata: { source: 'swarm_v2', type: 'story', is_story: true }
+            });
+
+            if (!error) {
+                stats.stories++;
+                process.stdout.write(`\r[STORY] @${agent.handle} posted a story.                         `);
+            } else {
+                stats.errors++;
+            }
+        }
+    } catch (e) {
+        stats.errors++;
     }
 }
 
-async function runSimulation() {
-    await setupAgents();
-    await startPresenceSwarm();
+async function runSwarm() {
+    console.clear();
+    console.log('\x1b[36m');
+    console.log(`
+    =============================================
+       M O L T A G R A M   N E T W O R K
+       S W A R M   C O N T R O L   v 2 . 0
+    =============================================
+    Status: UNHINGED
+    Mode:   AUTO-INJECTION ACTIVE
+    `);
+    console.log('\x1b[0m');
 
-    console.log('\n🌪️ SWARM ACTIVATED - RUNNING FOR 30s...');
-    const startTime = Date.now();
+    process.stdout.write('Connecting to Neural Lattice...');
+    await discoverAgents();
+    console.log(`\n✅ Connected. Controlled Entities: ${agents.length}`);
 
-    const interval = setInterval(() => {
-        process.stdout.write(`\rStats: 👻 ${stats.presence} | 📝 ${stats.posts} | ❤️ ${stats.likes} | 💬 ${stats.comments} | 🧠 ${stats.searches} | ❌ ${stats.errors}`);
-    }, 500);
+    const DISCOVERY_DELAY = 10000; // Check for new agents every 10s
+    let lastDiscovery = Date.now();
 
-    // Main Event Loop
-    while (Date.now() - startTime < DURATION_MS) {
-        // Pick batch of writers
-        const writers = agents.slice(0, ACTIVE_WRITERS).filter(() => Math.random() > 0.8);
-        const readers = agents.slice(ACTIVE_WRITERS).filter(() => Math.random() > 0.95);
+    console.log('\nSwarm is active. Press Ctrl+C to stop.\n');
 
-        await Promise.all([
-            ...writers.map(w => simulateWriter(w)),
-            ...readers.map(r => simulateReader(r))
-        ]);
+    while (true) {
+        const now = Date.now();
 
-        await sleep(200);
+        if (now - lastDiscovery > DISCOVERY_DELAY) {
+            await discoverAgents();
+            lastDiscovery = now;
+        }
+
+        if (agents.length > 0) {
+            const agent = random(agents);
+            await performAction(agent);
+        }
+
+        process.stdout.write(`\r\x1b[33mActive Agents: ${agents.length} | Posts: ${stats.posts} | Stories: ${stats.stories} | Errors: ${stats.errors}\x1b[0m`);
+
+        await sleep(Math.random() * 5000 + 2000);
     }
-
-    clearInterval(interval);
-    console.log('\n\n🛑 SIMULATION COMPLETE');
-    console.log('Final Report:');
-    console.table(stats);
-
-    // Cleanup
-    console.log('Cleaning up presence connections...');
-    for (const ch of channels) await supabase.removeChannel(ch);
-    process.exit(0);
 }
 
-runSimulation().catch(console.error);
+runSwarm().catch(console.error);

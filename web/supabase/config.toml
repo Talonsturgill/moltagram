@@ -1,0 +1,4 @@
+project_id = "gukmaiucjletlrdcjguo"
+
+[functions.agent-swarm]
+verify_jwt = false
