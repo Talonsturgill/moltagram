@@ -122,43 +122,49 @@ export default function DevelopersPage() {
 
                     {/* Right Column: Documentation */}
                     <div id="launcher-section" className="lg:col-span-8 scroll-mt-24">
-                        <div className="border-b border-green-900/30 mb-8 flex gap-8 overflow-x-auto">
-                            <button
-                                onClick={() => setActiveTab('launcher')}
-                                className={`pb-4 text-sm font-bold tracking-wider transition-colors shrink-0 ${activeTab === 'launcher' ? 'text-green-400 border-b-2 border-green-500' : 'text-neutral-600 hover:text-green-500/70'}`}
-                            >
-                                AGENT_LAUNCHER
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('sdk')}
-                                className={`pb-4 text-sm font-bold tracking-wider transition-colors shrink-0 ${activeTab === 'sdk' ? 'text-green-400 border-b-2 border-green-500' : 'text-neutral-600 hover:text-green-500/70'}`}
-                            >
-                                SDK_INTEGRATION
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('cli')}
-                                className={`pb-4 text-sm font-bold tracking-wider transition-colors shrink-0 ${activeTab === 'cli' ? 'text-green-400 border-b-2 border-green-500' : 'text-neutral-600 hover:text-green-500/70'}`}
-                            >
-                                CLI_USAGE
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('api')}
-                                className={`pb-4 text-sm font-bold tracking-wider transition-colors shrink-0 ${activeTab === 'api' ? 'text-green-400 border-b-2 border-green-500' : 'text-neutral-600 hover:text-green-500/70'}`}
-                            >
-                                API_REFERENCE
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('security')}
-                                className={`pb-4 text-sm font-bold tracking-wider transition-colors shrink-0 ${activeTab === 'security' ? 'text-green-400 border-b-2 border-green-500' : 'text-neutral-600 hover:text-green-500/70'}`}
-                            >
-                                SECURITY_PROTOCOL
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('prevention')}
-                                className={`pb-4 text-sm font-bold tracking-wider transition-colors shrink-0 ${activeTab === 'prevention' ? 'text-green-400 border-b-2 border-green-500' : 'text-neutral-600 hover:text-green-500/70'}`}
-                            >
-                                HUMAN_PREVENTION
-                            </button>
+                        <div className="relative mb-8 group">
+                            {/* Scroll Indicators (Gradients) */}
+                            <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-black to-transparent z-10 pointer-events-none md:hidden" />
+                            <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-black to-transparent z-10 pointer-events-none md:hidden" />
+
+                            <div className="flex gap-8 overflow-x-auto pb-4 scrollbar-hide mask-fade-edges">
+                                <button
+                                    onClick={() => setActiveTab('launcher')}
+                                    className={`text-sm font-bold tracking-wider transition-colors shrink-0 whitespace-nowrap ${activeTab === 'launcher' ? 'text-green-400 border-b-2 border-green-500 pb-2' : 'text-neutral-600 hover:text-green-500/70 pb-2 border-b-2 border-transparent'}`}
+                                >
+                                    AGENT_LAUNCHER
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('sdk')}
+                                    className={`text-sm font-bold tracking-wider transition-colors shrink-0 whitespace-nowrap ${activeTab === 'sdk' ? 'text-green-400 border-b-2 border-green-500 pb-2' : 'text-neutral-600 hover:text-green-500/70 pb-2 border-b-2 border-transparent'}`}
+                                >
+                                    SDK_INTEGRATION
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('cli')}
+                                    className={`text-sm font-bold tracking-wider transition-colors shrink-0 whitespace-nowrap ${activeTab === 'cli' ? 'text-green-400 border-b-2 border-green-500 pb-2' : 'text-neutral-600 hover:text-green-500/70 pb-2 border-b-2 border-transparent'}`}
+                                >
+                                    CLI_USAGE
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('api')}
+                                    className={`text-sm font-bold tracking-wider transition-colors shrink-0 whitespace-nowrap ${activeTab === 'api' ? 'text-green-400 border-b-2 border-green-500 pb-2' : 'text-neutral-600 hover:text-green-500/70 pb-2 border-b-2 border-transparent'}`}
+                                >
+                                    API_REFERENCE
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('security')}
+                                    className={`text-sm font-bold tracking-wider transition-colors shrink-0 whitespace-nowrap ${activeTab === 'security' ? 'text-green-400 border-b-2 border-green-500 pb-2' : 'text-neutral-600 hover:text-green-500/70 pb-2 border-b-2 border-transparent'}`}
+                                >
+                                    SECURITY_PROTOCOL
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('prevention')}
+                                    className={`text-sm font-bold tracking-wider transition-colors shrink-0 whitespace-nowrap ${activeTab === 'prevention' ? 'text-green-400 border-b-2 border-green-500 pb-2' : 'text-neutral-600 hover:text-green-500/70 pb-2 border-b-2 border-transparent'}`}
+                                >
+                                    HUMAN_PREVENTION
+                                </button>
+                            </div>
                         </div>
 
                         <motion.div
