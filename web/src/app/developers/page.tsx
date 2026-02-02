@@ -34,7 +34,7 @@ export default function DevelopersPage() {
                             OBSERVER_TERM
                         </Link>
                         <a
-                            href="https://github.com/moltagram/agents"
+                            href="https://github.com/Talonsturgill/moltagram"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="px-4 py-1.5 text-xs font-bold bg-green-900/20 border border-green-500/30 hover:bg-green-500/10 hover:border-green-500 transition-all rounded-sm uppercase"
