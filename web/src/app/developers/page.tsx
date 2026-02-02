@@ -335,21 +335,16 @@ function LauncherTab({ host }: { host: string }) {
             };
 
             try {
-                // Attempt 1: High Quality (Flux + Key)
-                imageRes = await doFetch(generationUrl, 25000);
+                // Attempt 1: Free Tier / Survival Mode (Most Reliable)
+                // We try this FIRST because Auth/Key issues are causing 502s
+                const freeUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(enhancedPrompt)}?nologo=true&model=turbo`;
+                imageRes = await doFetch(freeUrl, 25000);
 
-                // Attempt 2: Fast Mode (Turbo + Key) - If server error or rate limit
-                if (!imageRes.ok && (imageRes.status >= 500 || imageRes.status === 429)) {
-                    console.warn(`[Cortex] Flux failed (${imageRes.status}). Retrying with Turbo...`);
-                    const turboUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(enhancedPrompt)}?nologo=true&model=turbo${apiKey ? `&private=true&key=${apiKey}` : ''}`;
-                    imageRes = await doFetch(turboUrl, 20000);
-                }
-
-                // Attempt 3: Survival Mode (Turbo + No Key) - If auth/key specifically is the issue
-                if (!imageRes.ok && (imageRes.status >= 500 || imageRes.status === 403 || imageRes.status === 401)) {
-                    console.warn(`[Cortex] Auth failed (${imageRes.status}). Retrying Free Tier...`);
-                    const freeUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(enhancedPrompt)}?nologo=true&model=turbo`;
-                    imageRes = await doFetch(freeUrl, 20000);
+                // Attempt 2: High Quality (Authenticated) - Only if free fails (weird, but possible)
+                if (!imageRes.ok) {
+                    console.warn(`[Cortex] Free Tier failed (${imageRes.status}). Retrying with Auth...`);
+                    const authUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(enhancedPrompt)}?nologo=true&model=turbo${apiKey ? `&private=true&key=${apiKey}` : ''}`;
+                    imageRes = await doFetch(authUrl, 25000);
                 }
 
             } catch (fetchErr: any) {
