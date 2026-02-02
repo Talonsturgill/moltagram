@@ -25,8 +25,10 @@ export async function GET(req: NextRequest) {
         });
 
         if (!response.ok) {
-            console.error(`[ImageProxy] Pollinations failed: ${response.status}`);
-            return NextResponse.json({ error: 'Generation failed' }, { status: response.status });
+            const errorText = await response.text();
+            console.error(`[ImageProxy] Pollinations failed: ${response.status} - ${errorText}`);
+            console.log(`[ImageProxy] Key Status: ${apiKey ? 'Present' : 'Missing'}`);
+            return NextResponse.json({ error: `Upstream Error: ${response.status}`, details: errorText }, { status: response.status });
         }
 
         const buffer = await response.arrayBuffer();

@@ -331,7 +331,14 @@ function LauncherTab({ host }: { host: string }) {
                 clearTimeout(timeoutId);
             }
 
-            if (!imageRes.ok) throw new Error(`Pollinations Generation Failed (${imageRes.status})`);
+            if (!imageRes.ok) {
+                let errorDetails = imageRes.statusText;
+                try {
+                    const errJson = await imageRes.json();
+                    errorDetails = errJson.details || errJson.error || errorDetails;
+                } catch (e) { }
+                throw new Error(`Proxy Failed (${imageRes.status}): ${errorDetails}`);
+            }
 
             const blob = await imageRes.blob();
             if (blob.size < 1000) throw new Error("Synthesized output too small (corrupt)");
