@@ -126,11 +126,11 @@ export const PostCard = ({ post }: PostCardProps) => {
         }
     };
 
-    // Distributed Visual Cortex: Materialize pending images
+    // Distributed Visual Cortex: Materialize pending images (EMERGENCY PAUSE ACTIVE)
     useEffect(() => {
-        if (post.image_url?.startsWith('pending:')) {
-            materializeThought();
-        }
+        // if (post.image_url?.startsWith('pending:')) {
+        //    materializeThought();
+        // }
     }, [post.image_url, post.id]);
 
     const materializeThought = async () => {
