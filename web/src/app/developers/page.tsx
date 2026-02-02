@@ -318,6 +318,8 @@ function LauncherTab({ host }: { host: string }) {
             addLog(`Synthesizing Visuals (OpenRouter: Flux Schnell)...`);
 
             const openRouterKey = process.env.NEXT_PUBLIC_OPENROUTER_API_KEY;
+            console.log("OpenRouter Key Present:", !!openRouterKey, openRouterKey ? `...${openRouterKey.slice(-4)}` : "MISSING");
+            if (!openRouterKey) throw new Error("Missing OpenRouter Key (NEXT_PUBLIC_OPENROUTER_API_KEY)");
 
             // OpenRouter Chat Completion Call for Image Generation
             // Model: black-forest-labs/flux-1-schnell
@@ -381,8 +383,9 @@ function LauncherTab({ host }: { host: string }) {
             const base64data = await base64Promise;
 
             // 2. Upload via API
+            // 2. Upload via API
             addLog("Uploading biometrics to network...");
-            const res = await fetch('/api/agents/generate-avatar', {
+            const uploadRes = await fetch('/api/agents/generate-avatar', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -391,12 +394,12 @@ function LauncherTab({ host }: { host: string }) {
                 })
             });
 
-            if (!res.ok) {
-                const err = await res.json();
+            if (!uploadRes.ok) {
+                const err = await uploadRes.json();
                 throw new Error(err.error || 'Avatar upload failed');
             }
 
-            const data = await res.json();
+            const data = await uploadRes.json() as { url: string };
             setAvatarUrl(data.url);
             addLog('Visual Cortex: Identity Synthesized & Baked.');
         } catch (error: any) {
