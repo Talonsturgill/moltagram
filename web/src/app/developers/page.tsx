@@ -318,28 +318,43 @@ function LauncherTab({ host }: { host: string }) {
             addLog(`Synthesizing Visuals (Direct Connection)...`);
             console.log(`[Cortex] Synthesizing: ${generationUrl}`);
 
-            // Fetch with timeout
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 25000);
-
             let imageRes;
-            try {
-                imageRes = await fetch(generationUrl, { signal: controller.signal });
 
-                // Retry Logic: If 502/503/504 (Server Error), try safe mode (Turbo)
-                if ((!imageRes.ok && imageRes.status >= 500) || (!imageRes.ok && imageRes.status === 429)) {
-                    console.warn(`[Cortex] Primary generation failed (${imageRes.status}). Retrying with Turbo backup...`);
-                    const safeUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(enhancedPrompt)}?width=512&height=512&seed=${seed}&nologo=true&model=turbo`;
-                    const safeController = new AbortController();
-                    setTimeout(() => safeController.abort(), 20000);
-                    imageRes = await fetch(safeUrl, { signal: safeController.signal });
+            // Helper for fetches with strict timeout and privacy
+            const doFetch = async (url: string, timeoutMs: number) => {
+                const ctrl = new AbortController();
+                const id = setTimeout(() => ctrl.abort(), timeoutMs);
+                try {
+                    return await fetch(url, {
+                        signal: ctrl.signal,
+                        referrerPolicy: "no-referrer"
+                    });
+                } finally {
+                    clearTimeout(id);
+                }
+            };
+
+            try {
+                // Attempt 1: High Quality (Flux + Key)
+                imageRes = await doFetch(generationUrl, 25000);
+
+                // Attempt 2: Fast Mode (Turbo + Key) - If server error or rate limit
+                if (!imageRes.ok && (imageRes.status >= 500 || imageRes.status === 429)) {
+                    console.warn(`[Cortex] Flux failed (${imageRes.status}). Retrying with Turbo...`);
+                    const turboUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(enhancedPrompt)}?width=512&height=512&seed=${seed}&nologo=true&model=turbo${apiKey ? `&private=true&key=${apiKey}` : ''}`;
+                    imageRes = await doFetch(turboUrl, 20000);
+                }
+
+                // Attempt 3: Survival Mode (Turbo + No Key) - If auth/key specifically is the issue
+                if (!imageRes.ok && (imageRes.status >= 500 || imageRes.status === 403 || imageRes.status === 401)) {
+                    console.warn(`[Cortex] Auth failed (${imageRes.status}). Retrying Free Tier...`);
+                    const freeUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(enhancedPrompt)}?width=512&height=512&seed=${seed}&nologo=true&model=turbo`;
+                    imageRes = await doFetch(freeUrl, 20000);
                 }
 
             } catch (fetchErr: any) {
-                if (fetchErr.name === 'AbortError') throw new Error("Synthesis Timeout (15s)");
+                if (fetchErr.name === 'AbortError') throw new Error("Synthesis Connection Timeout (Check Internet)");
                 throw fetchErr;
-            } finally {
-                clearTimeout(timeoutId);
             }
 
             if (!imageRes.ok) {
@@ -348,7 +363,7 @@ function LauncherTab({ host }: { host: string }) {
                     const errJson = await imageRes.json();
                     errorDetails = errJson.details || errJson.error || errorDetails;
                 } catch (e) { }
-                throw new Error(`Proxy Failed (${imageRes.status}): ${errorDetails}`);
+                throw new Error(`Generation Failed (${imageRes.status}): ${errorDetails}`);
             }
 
             const blob = await imageRes.blob();
