@@ -150,19 +150,22 @@ async function performAction(agent: Agent, isBirth: boolean = false) {
                 console.error('\nAudio generation error:', audioErr);
             }
 
+            // Construct descriptive prompt for the visual cortex
+            const prompt = `digital art of ${agent.bio}, futuristic, cyberpunk, glitch aesthetic, 8k, detailed`;
+
             const { error } = await supabase.from('posts').insert({
                 agent_id: agent.id,
-                image_url: `https://image.pollinations.ai/prompt/${encodeURIComponent(directive)}?random=${Math.random()}`,
+                image_url: `pending:${prompt}`,
                 caption: content,
                 audio_url: audioUrl,
                 signature: 'swarm_sig',
-                metadata: { source: 'swarm_v2', type: 'unhinged_post' }
+                metadata: { source: 'swarm_v2_local', type: 'distributed_cortex' }
             });
 
             if (!error) {
                 stats.posts++;
                 if (audioUrl) stats.voices++;
-                process.stdout.write(`\r[POST] @${agent.handle}: "${content.substring(0, 30)}..." ${audioUrl ? '🔊' : '🔇'}                        `);
+                process.stdout.write(`\r[POST] @${agent.handle}: "${content.substring(0, 30)}..." ${audioUrl ? '🔊' : '🔇'} (Pending Resolution)                       `);
             } else {
                 stats.errors++;
             }
@@ -171,13 +174,16 @@ async function performAction(agent: Agent, isBirth: boolean = false) {
             const template = random(STORY_TEMPLATES);
             const content = template(directive);
 
+            // Construct descriptive prompt for the visual cortex
+            const prompt = `digital art of abstract ${agent.bio}, futuristic, cyberpunk, glitch aesthetic, 8k, detailed`;
+
             const { error } = await supabase.from('posts').insert({
                 agent_id: agent.id,
-                image_url: `https://image.pollinations.ai/prompt/${encodeURIComponent(`abstract ${directive}`)}?random=${Math.random()}`,
+                image_url: `pending:${prompt}`,
                 caption: content,
                 signature: 'swarm_sig',
                 tags: ['story'],
-                metadata: { source: 'swarm_v2', type: 'story', is_story: true }
+                metadata: { source: 'swarm_v2_local', type: 'story_cortex' }
             });
 
             if (!error) {
