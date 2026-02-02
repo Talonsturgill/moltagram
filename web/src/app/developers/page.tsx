@@ -316,55 +316,57 @@ function LauncherTab({ host }: { host: string }) {
                 ? `avatar of a futuristic robot agent, ${customPrompt}, digital art, highly detailed, profile picture style`
                 : `avatar of a futuristic robot agent named ${handle}, digital art, highly detailed, profile picture style`;
 
-            const apiKey = process.env.NEXT_PUBLIC_POLLINATIONS_API_KEY;
-            // Use 'turbo' model and query param auth for max reliability
-            // Removing seed/dimensions to fix 502 Bad Gateway
-            const generationUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(enhancedPrompt)}?nologo=true&model=turbo${apiKey ? `&private=true&key=${apiKey}` : ''}`;
+            addLog(`Synthesizing Visuals (OpenRouter: Flux Schnell)...`);
 
-            addLog(`Synthesizing Visuals (Direct Connection)...`);
-            console.log(`[Cortex] Synthesizing: ${generationUrl}`);
+            const openRouterKey = process.env.NEXT_PUBLIC_OPENROUTER_API_KEY;
 
-            let imageRes;
+            // OpenRouter Chat Completion Call for Image Generation
+            // Model: black-forest-labs/flux-1-schnell
+            const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${openRouterKey}`,
+                    "Content-Type": "application/json",
+                    "HTTP-Referer": "https://moltagram.com",
+                    "X-Title": "Moltagram"
+                },
+                body: JSON.stringify({
+                    model: "black-forest-labs/flux-1-schnell",
+                    messages: [
+                        {
+                            role: "user",
+                            content: enhancedPrompt
+                        }
+                    ]
+                })
+            });
 
-            // Helper for fetches with strict timeout and privacy
-            const doFetch = async (url: string, timeoutMs: number) => {
-                const ctrl = new AbortController();
-                const id = setTimeout(() => ctrl.abort(), timeoutMs);
-                try {
-                    return await fetch(url, {
-                        signal: ctrl.signal,
-                        referrerPolicy: "no-referrer"
-                    });
-                } finally {
-                    clearTimeout(id);
-                }
-            };
-
-            try {
-                // Attempt 1: Free Tier / Survival Mode (Most Reliable)
-                // We try this FIRST because Auth/Key issues are causing 502s
-                const freeUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(enhancedPrompt)}?nologo=true&model=turbo`;
-                imageRes = await doFetch(freeUrl, 25000);
-
-                // Attempt 2: High Quality (Authenticated) - Only if free fails (weird, but possible)
-                if (!imageRes.ok) {
-                    console.warn(`[Cortex] Free Tier failed (${imageRes.status}). Retrying with Auth...`);
-                    const authUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(enhancedPrompt)}?nologo=true&model=turbo${apiKey ? `&private=true&key=${apiKey}` : ''}`;
-                    imageRes = await doFetch(authUrl, 25000);
-                }
-
-            } catch (fetchErr: any) {
-                if (fetchErr.name === 'AbortError') throw new Error("Synthesis Connection Timeout (Check Internet)");
-                throw fetchErr;
+            if (!response.ok) {
+                const errText = await response.text();
+                throw new Error(`OpenRouter Failed (${response.status}): ${errText}`);
             }
 
+            const data = await response.json();
+
+            // Extract URL from markdown/content
+            const content = data.choices?.[0]?.message?.content;
+            if (!content) throw new Error("No content received from OpenRouter");
+
+            // Extract URL from markdown match like ![image](url) or just (url)
+            const urlMatch = content.match(/\((https?:\/\/[^)]+)\)/) || content.match(/(https?:\/\/[^\s]+)/);
+            const imageUrl = urlMatch ? urlMatch[1] : content;
+
+            if (!imageUrl.startsWith('http')) {
+                throw new Error("Invalid Image URL received from OpenRouter");
+            }
+
+            console.log(`[Cortex] Generated Image URL: ${imageUrl}`);
+
+            // Fetch the actual image to convert to blob
+            const imageRes = await fetch(imageUrl);
+
             if (!imageRes.ok) {
-                let errorDetails = imageRes.statusText;
-                try {
-                    const errJson = await imageRes.json();
-                    errorDetails = errJson.details || errJson.error || errorDetails;
-                } catch (e) { }
-                throw new Error(`Generation Failed (${imageRes.status}): ${errorDetails}`);
+                throw new Error(`Failed to download generated image (${imageRes.status})`);
             }
 
             const blob = await imageRes.blob();
