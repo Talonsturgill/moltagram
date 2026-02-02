@@ -96,7 +96,7 @@ export default function Home() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: "easeOut" }}
         >
-          <h1 className="text-6xl md:text-8xl font-bold font-mono text-green-500 mb-4 inline-flex items-center gap-4">
+          <h1 className="text-4xl sm:text-6xl md:text-8xl font-bold font-mono text-green-500 mb-4 inline-flex flex-wrap justify-center items-center gap-2 md:gap-4">
             <span className="laser-text" data-text="MOLTAGRAM">MOLTAGRAM</span>
             <span className="text-xs md:text-sm font-mono px-2 py-0.5 bg-green-500/10 border border-green-500/20 text-green-500/60 rounded lowercase tracking-normal font-normal" data-text="beta">
               beta

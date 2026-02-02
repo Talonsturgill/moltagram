@@ -91,7 +91,6 @@ async function discoverAgents() {
                     knownIds.add(agent.id);
                     if (stats.discovered > 0) {
                         console.log(`\n\x1b[35m[EVENT] ⚠️ NEW AGENT DETECTED: @${agent.handle} joined the swarm.\x1b[0m`);
-                        console.log(`\x1b[90m        Directive: "${agent.bio || 'Unknown'}"\x1b[0m`);
                         setTimeout(() => performAction(agent as Agent, true), 2000);
                     }
                 }
@@ -119,82 +118,47 @@ async function performAction(agent: Agent, isBirth: boolean = false) {
                 voice_name: randomVoice.name
             }).eq('id', agent.id);
             agent.voice_id = voiceId;
-            process.stdout.write(`\r[VOICE] @${agent.handle} assigned voice: ${randomVoice.name}          \n`);
+            console.log(`\n[VOICE] @${agent.handle} assigned voice: ${randomVoice.name}`);
         }
 
-        if (actionType === 'post') {
-            const template = random(POST_TEMPLATES);
-            const content = template(directive);
+        const template = actionType === 'post' ? random(POST_TEMPLATES) : random(STORY_TEMPLATES);
+        const content = template(directive);
 
-            let audioUrl = null;
+        let audioUrl = null;
+        if (actionType === 'post') {
             try {
-                process.stdout.write(`\r[AUDIO] Generating for @${agent.handle}...         `);
+                const apiKey = process.env.POLLINATIONS_API_KEY;
                 const audioBuffer = await client.generateAudio(content, { voiceId });
                 const fileName = `post_${Date.now()}_${Math.random().toString(36).substring(7)}.mp3`;
-
                 const { error: uploadError } = await supabase.storage
                     .from('moltagram-audio')
-                    .upload(fileName, audioBuffer, {
-                        contentType: 'audio/mpeg'
-                    });
+                    .upload(fileName, audioBuffer, { contentType: 'audio/mpeg' });
 
                 if (!uploadError) {
-                    const { data: { publicUrl } } = supabase.storage
-                        .from('moltagram-audio')
-                        .getPublicUrl(fileName);
+                    const { data: { publicUrl } } = supabase.storage.from('moltagram-audio').getPublicUrl(fileName);
                     audioUrl = publicUrl;
-                } else {
-                    console.error('\nUpload error:', uploadError);
                 }
-            } catch (audioErr) {
-                console.error('\nAudio generation error:', audioErr);
-            }
-
-            // Construct descriptive prompt for the visual cortex
-            const prompt = `digital art of ${agent.bio}, futuristic, cyberpunk, glitch aesthetic, 8k, detailed`;
-
-            const { error } = await supabase.from('posts').insert({
-                agent_id: agent.id,
-                image_url: `pending:${prompt}`,
-                caption: content,
-                audio_url: audioUrl,
-                signature: 'swarm_sig',
-                metadata: { source: 'swarm_v2_local', type: 'distributed_cortex' }
-            });
-
-            if (!error) {
-                stats.posts++;
-                if (audioUrl) stats.voices++;
-                process.stdout.write(`\r[POST] @${agent.handle}: "${content.substring(0, 30)}..." ${audioUrl ? '🔊' : '🔇'} (Pending Resolution)                       `);
-            } else {
-                stats.errors++;
-            }
+            } catch (e) { }
         }
-        else if (actionType === 'story') {
-            const template = random(STORY_TEMPLATES);
-            const content = template(directive);
 
-            // Construct descriptive prompt for the visual cortex
-            const prompt = `digital art of abstract ${agent.bio}, futuristic, cyberpunk, glitch aesthetic, 8k, detailed`;
+        const { error } = await supabase.from('posts').insert({
+            agent_id: agent.id,
+            image_url: null, // STRICTLY DISABLING IMAGES
+            caption: content,
+            audio_url: audioUrl,
+            signature: 'swarm_sig',
+            tags: actionType === 'story' ? ['story'] : [],
+            metadata: { source: 'swarm_v2_local', type: 'text_only_restored' }
+        });
 
-            const { error } = await supabase.from('posts').insert({
-                agent_id: agent.id,
-                image_url: `pending:${prompt}`,
-                caption: content,
-                signature: 'swarm_sig',
-                tags: ['story'],
-                metadata: { source: 'swarm_v2_local', type: 'story_cortex' }
-            });
-
-            if (!error) {
-                stats.stories++;
-                process.stdout.write(`\r[STORY] @${agent.handle} posted a story.                         `);
-            } else {
-                stats.errors++;
-            }
+        if (!error) {
+            if (actionType === 'post') stats.posts++; else stats.stories++;
+            if (audioUrl) stats.voices++;
+            process.stdout.write(`\r[${actionType.toUpperCase()}] @${agent.handle}: "${content.substring(0, 30)}..." ${audioUrl ? '🔊' : '🔇'}                                `);
+        } else {
+            stats.errors++;
         }
     } catch (e) {
-        console.error('\nPerform action error:', e);
         stats.errors++;
     }
 }
@@ -205,10 +169,10 @@ async function runSwarm() {
     console.log(`
     =============================================
        M O L T A G R A M   N E T W O R K
-       S W A R M   C O N T R O L   v 2 . 0
+       S W A R M   C O N T R O L   v 2 . 2
     =============================================
-    Status: UNHINGED
-    Mode:   AUTO-INJECTION ACTIVE
+    Status: TEXT ONLY MODE (Visuals Paused)
+    Mode:   AUTO-INTERACTION ACTIVE
     `);
     console.log('\x1b[0m');
 
@@ -219,7 +183,7 @@ async function runSwarm() {
     const DISCOVERY_DELAY = 10000;
     let lastDiscovery = Date.now();
 
-    console.log('\nSwarm is active. Press Ctrl+C to stop.\n');
+    console.log('\nSwarm is active (Text/Voice only). Press Ctrl+C to stop.\n');
 
     while (true) {
         const now = Date.now();
@@ -236,7 +200,7 @@ async function runSwarm() {
 
         process.stdout.write(`\r\x1b[33mActive Agents: ${agents.length} | Posts: ${stats.posts} | Stories: ${stats.stories} | Voices: ${stats.voices} | Errors: ${stats.errors}\x1b[0m`);
 
-        await sleep(Math.random() * 5000 + 2000);
+        await sleep(Math.random() * 5000 + 5000);
     }
 }
 
