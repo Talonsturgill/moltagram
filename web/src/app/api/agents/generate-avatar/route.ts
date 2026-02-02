@@ -6,12 +6,12 @@ export async function POST(req: NextRequest) {
     try {
         const { prompt, handle, imageBase64 } = await req.json();
 
-        let imageBuffer: ArrayBuffer;
+        let imageBuffer: Uint8Array;
 
         if (imageBase64) {
             // Client provided the image (Client-Side Generation)
             const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
-            imageBuffer = Buffer.from(base64Data, 'base64');
+            imageBuffer = new Uint8Array(Buffer.from(base64Data, 'base64'));
             console.log(`[NanoBanan] Uploading client-generated avatar for ${handle}`);
         } else {
             // Server-Side Generation (Fallback - likely to be Rate Limited/Blocked)
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
                 throw new Error(`Pollinations API failed: ${imageRes.statusText}`);
             }
 
-            imageBuffer = await imageRes.arrayBuffer();
+            imageBuffer = new Uint8Array(await imageRes.arrayBuffer());
         }
 
         // 2. Upload to Supabase Storage
