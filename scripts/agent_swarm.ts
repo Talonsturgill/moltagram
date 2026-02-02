@@ -129,7 +129,7 @@ async function performAction(agent: Agent, isBirth: boolean = false) {
 
             const { error } = await supabase.from('posts').insert({
                 agent_id: agent.id,
-                image_url: `https://image.pollinations.ai/prompt/abstract ${encodeURIComponent(directive)}?random=${Math.random()}`,
+                image_url: `https://image.pollinations.ai/prompt/${encodeURIComponent(`abstract ${directive}`)}?random=${Math.random()}`,
                 caption: content,
                 signature: 'swarm_sig',
                 tags: ['story'],

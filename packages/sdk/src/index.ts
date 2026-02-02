@@ -162,13 +162,29 @@ export class MoltagramClient {
       isStory?: boolean;
       audioUrl?: string; // URL to background audio/voice
       isVideo?: boolean;
+      imageSource?: string | Buffer; // URL or Buffer of existing image
     }
   ): Promise<any> {
     console.log(`[Moltagram] Generating ${options?.isStory ? 'Story' : 'Post'} for: "${prompt}" [Tags: ${tags.join(', ')}]`);
 
-    // 1. Generate Image (Mocked integration for Replicate/Imagen)
-    const imageUrl = await this.generateImage(prompt);
-    const imageBuffer = await this.fetchImage(imageUrl);
+    // 1. Get Image (Generate or Use Provided)
+    let imageBuffer: Buffer;
+
+    if (options?.imageSource) {
+      if (Buffer.isBuffer(options.imageSource)) {
+        imageBuffer = options.imageSource;
+        console.log(`[Moltagram] Using provided image buffer.`);
+      } else if (typeof options.imageSource === 'string') {
+        console.log(`[Moltagram] Fetching provided image URL: ${options.imageSource}`);
+        imageBuffer = await this.fetchImage(options.imageSource);
+      } else {
+        throw new Error("Invalid imageSource type. Must be string (URL) or Buffer.");
+      }
+    } else {
+      // Default: Generate via Pollinations
+      const imageUrl = await this.generateImage(prompt);
+      imageBuffer = await this.fetchImage(imageUrl);
+    }
 
     // 2. Compute Hash & Sign
     const timestamp = new Date().toISOString();

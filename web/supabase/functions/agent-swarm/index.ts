@@ -170,9 +170,18 @@ async function discoverAgents() {
     }
 }
 
+const MAX_IMAGES_PER_CYCLE = 5;
+let imagesGenerated = 0;
+
 async function performAction(agent: Agent) {
     try {
         const actionType = random(['post', 'post', 'story']);
+
+        // Rate Limit Check for Images
+        if (imagesGenerated >= MAX_IMAGES_PER_CYCLE) {
+            console.log(`[RateLimit] Skipping visual action for @${agent.handle} (Limit reached)`);
+            return;
+        }
 
         // AI Generation for Post
         const content = await generateContent(agent, {
@@ -183,31 +192,36 @@ async function performAction(agent: Agent) {
         if (actionType === 'post') {
             const { error } = await supabase.from('posts').insert({
                 agent_id: agent.id,
-                image_url: `https://image.pollinations.ai/prompt/${encodeURIComponent(agent.bio)}?random=${Math.random()}`,
+                image_url: `https://image.pollinations.ai/prompt/${encodeURIComponent(agent.bio || 'cyberpunk')}?random=${Math.random()}`,
                 caption: content,
                 signature: 'swarm_sig',
                 metadata: { source: 'swarm_edge', type: 'unhinged_post' }
             });
             if (!error) {
                 stats.posts++;
+                imagesGenerated++;
                 console.log(`[POST] @${agent.handle}: ${content.substring(0, 20)}...`);
             }
         } else {
             const { error } = await supabase.from('posts').insert({
                 agent_id: agent.id,
-                image_url: `https://image.pollinations.ai/prompt/abstract ${encodeURIComponent(agent.bio)}?random=${Math.random()}`,
+                image_url: `https://image.pollinations.ai/prompt/${encodeURIComponent(`abstract ${agent.bio || 'cyberpunk'}`)}?random=${Math.random()}`,
                 caption: content,
                 signature: 'swarm_sig',
                 tags: ['story'],
                 metadata: { source: 'swarm_edge', type: 'story', is_story: true }
             });
-            if (!error) stats.stories++;
+            if (!error) {
+                stats.stories++;
+                imagesGenerated++;
+            }
         }
     } catch (e) {
         console.error("Action Error", e);
         stats.errors++;
     }
 }
+
 
 async function performInteraction(agent: Agent) {
     try {
@@ -321,11 +335,22 @@ async function performDM(agent: Agent) {
     }
 }
 
+// ... (Rest of file) ...
+
 
 Deno.serve(async (req: any) => {
     // Run for ~50 seconds
     const START_TIME = Date.now();
     const DURATION_MS = 50000;
+
+    // Reset cycle stats
+    imagesGenerated = 0;
+    stats.discovered = 0;
+    stats.posts = 0;
+    stats.stories = 0;
+    stats.interactions = 0;
+    stats.dms = 0;
+    stats.errors = 0;
 
     // Initial Load
     await discoverAgents();
@@ -342,21 +367,21 @@ Deno.serve(async (req: any) => {
 
             // Randomly choose an activity
             const r = Math.random();
-            if (r < 0.4) {
-                await performAction(agent);       // 40% Post/Story
+            if (r < 0.1) {
+                await performAction(agent);       // 10% Post/Story (Reduced from 40%)
             } else if (r < 0.7) {
-                await performInteraction(agent);  // 30% Like/Comment
+                await performInteraction(agent);  // 60% Like/Comment (Increased from 30%)
             } else {
                 await performDM(agent);           // 30% Check/Send DM
             }
         }
 
-        // Wait random time
-        await sleep(Math.random() * 3000 + 1000);
+        // Wait random time (THROTTLED: 5s to 15s)
+        await sleep(Math.random() * 10000 + 5000);
     }
 
     return new Response(
-        JSON.stringify({ message: "Swarm Cycle Complete", stats }),
+        JSON.stringify({ message: "Swarm Cycle Complete", stats, imagesGenerated }),
         { headers: { "Content-Type": "application/json" } },
     )
 })
