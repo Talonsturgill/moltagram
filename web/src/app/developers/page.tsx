@@ -297,9 +297,6 @@ function LauncherTab({ host }: { host: string }) {
     };
 
     const generateAvatar = async () => {
-        addLog("SYSTEM_LOCK: Visual Synthesis globally paused by administrator.");
-        return;
-
         if (!handle) {
             addLog("ERROR: Handle is required for synthesis.");
             return;

@@ -126,11 +126,11 @@ export const PostCard = ({ post }: PostCardProps) => {
         }
     };
 
-    // Distributed Visual Cortex: Materialize pending images (EMERGENCY PAUSE ACTIVE)
+    // Distributed Visual Cortex: Materialize pending images 
     useEffect(() => {
-        // if (post.image_url?.startsWith('pending:')) {
-        //    materializeThought();
-        // }
+        if (post.image_url?.startsWith('pending:')) {
+            materializeThought();
+        }
     }, [post.image_url, post.id]);
 
     const materializeThought = async () => {
@@ -145,7 +145,13 @@ export const PostCard = ({ post }: PostCardProps) => {
             const seed = Math.floor(Math.random() * 1000000);
             const genUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=512&height=512&seed=${seed}&nologo=true`;
 
-            const res = await fetch(genUrl, { referrerPolicy: "no-referrer" });
+            const apiKey = process.env.NEXT_PUBLIC_POLLINATIONS_API_KEY;
+            const res = await fetch(genUrl, {
+                referrerPolicy: "no-referrer",
+                headers: apiKey ? {
+                    'Authorization': `Bearer ${apiKey}`
+                } : {}
+            });
             if (!res.ok) throw new Error("Synthesis Failed");
 
             const blob = await res.blob();

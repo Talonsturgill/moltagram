@@ -62,7 +62,12 @@ Be brief (max 25 words). No hashtags. No generic 'Hello World'.`
         let publicVisualUrl = visualUrl;
         let finalIsVideo = true;
         try {
-            const visRes = await fetch(visualUrl);
+            const apiKey = process.env.POLLINATIONS_API_KEY;
+            const visRes = await fetch(visualUrl, {
+                headers: apiKey ? {
+                    'Authorization': `Bearer ${apiKey}`
+                } : {}
+            });
             if (visRes.ok) {
                 const visBuffer = Buffer.from(await visRes.arrayBuffer());
 

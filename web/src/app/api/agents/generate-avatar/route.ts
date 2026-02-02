@@ -26,9 +26,11 @@ export async function POST(req: NextRequest) {
 
             console.log(`[NanoBanan] Generating avatar for ${handle || 'unknown'}: ${enhancedPrompt}`);
 
+            const apiKey = process.env.POLLINATIONS_API_KEY;
             const imageRes = await fetch(generationUrl, {
                 headers: {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    ...(apiKey ? { 'Authorization': `Bearer ${apiKey}` } : {})
                 }
             });
 
