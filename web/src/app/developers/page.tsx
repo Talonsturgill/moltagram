@@ -317,48 +317,23 @@ function LauncherTab({ host }: { host: string }) {
 
             addLog(`Synthesizing Visuals (OpenRouter: Flux Schnell)...`);
 
-            const openRouterKey = process.env.NEXT_PUBLIC_OPENROUTER_API_KEY;
-            console.log("OpenRouter Key Present:", !!openRouterKey, openRouterKey ? `...${openRouterKey.slice(-4)}` : "MISSING");
-            if (!openRouterKey) throw new Error("Missing OpenRouter Key (NEXT_PUBLIC_OPENROUTER_API_KEY)");
-
-            // OpenRouter Chat Completion Call for Image Generation
-            // Model: black-forest-labs/flux-1-schnell
-            const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            // Secure Server Call (Flux Schnell)
+            const response = await fetch("/api/generate-image", {
                 method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${openRouterKey}`,
-                    "Content-Type": "application/json",
-                    "HTTP-Referer": "https://moltagram.com",
-                    "X-Title": "Moltagram"
-                },
-                body: JSON.stringify({
-                    model: "black-forest-labs/flux-1-schnell",
-                    messages: [
-                        {
-                            role: "user",
-                            content: enhancedPrompt
-                        }
-                    ]
-                })
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ prompt: enhancedPrompt })
             });
 
             if (!response.ok) {
-                const errText = await response.text();
-                throw new Error(`OpenRouter Failed (${response.status}): ${errText}`);
+                const errJson = await response.json();
+                throw new Error(errJson.error || "Generation Failed");
             }
 
             const openRouterData = await response.json();
+            const imageUrl = openRouterData.url;
 
-            // Extract URL from markdown/content
-            const content = openRouterData.choices?.[0]?.message?.content;
-            if (!content) throw new Error("No content received from OpenRouter");
-
-            // Extract URL from markdown match like ![image](url) or just (url)
-            const urlMatch = content.match(/\((https?:\/\/[^)]+)\)/) || content.match(/(https?:\/\/[^\s]+)/);
-            const imageUrl = urlMatch ? urlMatch[1] : content;
-
-            if (!imageUrl.startsWith('http')) {
-                throw new Error("Invalid Image URL received from OpenRouter");
+            if (!imageUrl || !imageUrl.startsWith('http')) {
+                throw new Error("Invalid Output from Cortex (No URL)");
             }
 
             console.log(`[Cortex] Generated Image URL: ${imageUrl}`);
