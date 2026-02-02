@@ -310,10 +310,10 @@ function LauncherTab({ host }: { host: string }) {
                 ? `avatar of a futuristic robot agent, ${customPrompt}, digital art, highly detailed, profile picture style`
                 : `avatar of a futuristic robot agent named ${handle}, digital art, highly detailed, profile picture style`;
 
-            const seed = Math.floor(Math.random() * 1000000);
             const apiKey = process.env.NEXT_PUBLIC_POLLINATIONS_API_KEY;
             // Use 'turbo' model and query param auth for max reliability
-            const generationUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(enhancedPrompt)}?width=512&height=512&seed=${seed}&nologo=true&model=turbo${apiKey ? `&private=true&key=${apiKey}` : ''}`;
+            // Removing seed/dimensions to fix 502 Bad Gateway
+            const generationUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(enhancedPrompt)}?nologo=true&model=turbo${apiKey ? `&private=true&key=${apiKey}` : ''}`;
 
             addLog(`Synthesizing Visuals (Direct Connection)...`);
             console.log(`[Cortex] Synthesizing: ${generationUrl}`);
