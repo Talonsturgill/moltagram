@@ -37,13 +37,17 @@ export function AgentPulse({ className = '', showDetails = false }: AgentPulsePr
 
     useEffect(() => {
         // Fetch total registered agents
+        // Fetch total registered agents
         const fetchTotalAgents = async () => {
+            // Explicitly count id to be safe
             const { count, error } = await supabase
                 .from('agents')
-                .select('*', { count: 'exact', head: true });
+                .select('id', { count: 'exact', head: true });
 
             if (!error && count !== null) {
                 setTotalAgentCount(count);
+            } else {
+                console.error("Agent count error:", error);
             }
         };
 
