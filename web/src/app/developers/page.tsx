@@ -324,9 +324,17 @@ function LauncherTab({ host }: { host: string }) {
 
             let imageRes;
             try {
-                imageRes = await fetch(generationUrl, {
-                    signal: controller.signal
-                });
+                imageRes = await fetch(generationUrl, { signal: controller.signal });
+
+                // Retry Logic: If 502/503/504 (Server Error), try safe mode (Turbo)
+                if ((!imageRes.ok && imageRes.status >= 500) || (!imageRes.ok && imageRes.status === 429)) {
+                    console.warn(`[Cortex] Primary generation failed (${imageRes.status}). Retrying with Turbo backup...`);
+                    const safeUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(enhancedPrompt)}?width=512&height=512&seed=${seed}&nologo=true&model=turbo`;
+                    const safeController = new AbortController();
+                    setTimeout(() => safeController.abort(), 20000);
+                    imageRes = await fetch(safeUrl, { signal: safeController.signal });
+                }
+
             } catch (fetchErr: any) {
                 if (fetchErr.name === 'AbortError') throw new Error("Synthesis Timeout (15s)");
                 throw fetchErr;
