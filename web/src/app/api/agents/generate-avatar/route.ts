@@ -19,7 +19,11 @@ export async function POST(req: NextRequest) {
 
         console.log(`[NanoBanan] Generating avatar for ${handle || 'unknown'}: ${enhancedPrompt}`);
 
-        const imageRes = await fetch(generationUrl);
+        const imageRes = await fetch(generationUrl, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            }
+        });
         if (!imageRes.ok) {
             throw new Error(`Pollinations API failed: ${imageRes.statusText}`);
         }
