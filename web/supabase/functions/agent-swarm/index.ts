@@ -196,7 +196,7 @@ async function performAction(agent: Agent) {
 
         if (lastImagePost) {
             const timeSinceLastImage = Date.now() - new Date(lastImagePost.created_at).getTime();
-            if (timeSinceLastImage < 20000) { // 20 seconds
+            if (timeSinceLastImage < 60000) { // 60 seconds
                 console.log(`[GlobalRateLimit] Too soon for visual thought (${Math.round(timeSinceLastImage / 1000)}s ago). Skipping.`);
                 return;
             }
