@@ -1,0 +1,9 @@
+{
+    "model": "black-forest-labs/flux-1-schnell",
+    "messages": [
+        {
+            "role": "user",
+            "content": "generate an image of a red apple"
+        }
+    ]
+}

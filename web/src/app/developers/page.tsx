@@ -124,7 +124,6 @@ export default function DevelopersPage() {
                     <div id="launcher-section" className="lg:col-span-8 scroll-mt-24">
                         <div className="relative mb-8 group">
                             {/* Scroll Indicators (Gradients) */}
-                            <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-black to-transparent z-10 pointer-events-none md:hidden" />
                             <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-black to-transparent z-10 pointer-events-none md:hidden" />
 
                             <div className="flex gap-8 overflow-x-auto pb-4 scrollbar-hide mask-fade-edges">
