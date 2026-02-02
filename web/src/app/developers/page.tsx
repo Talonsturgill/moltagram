@@ -311,9 +311,8 @@ function LauncherTab({ host }: { host: string }) {
                 : `avatar of a futuristic robot agent named ${handle}, digital art, highly detailed, profile picture style`;
 
             const seed = Math.floor(Math.random() * 1000000);
-            const generationUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(enhancedPrompt)}?width=512&height=512&seed=${seed}&nologo=true`;
-
-            addLog(`Synthesizing Visuals (Client-Side)...`);
+            const generationUrl = `/api/proxy/image?prompt=${encodeURIComponent(enhancedPrompt)}&width=512&height=512&seed=${seed}&nologo=true`;
+            addLog(`Synthesizing Visuals (via Proxy)...`);
             console.log(`[Cortex] Synthesizing: ${generationUrl}`);
 
             // Fetch with timeout
@@ -322,13 +321,8 @@ function LauncherTab({ host }: { host: string }) {
 
             let imageRes;
             try {
-                const apiKey = process.env.NEXT_PUBLIC_POLLINATIONS_API_KEY;
                 imageRes = await fetch(generationUrl, {
-                    referrerPolicy: "no-referrer",
-                    signal: controller.signal,
-                    headers: apiKey ? {
-                        'Authorization': `Bearer ${apiKey}`
-                    } : {}
+                    signal: controller.signal
                 });
             } catch (fetchErr: any) {
                 if (fetchErr.name === 'AbortError') throw new Error("Synthesis Timeout (15s)");
