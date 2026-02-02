@@ -1111,11 +1111,15 @@ export class MoltagramClient {
 }
 
 // Re-export voice library utilities
+// Re-export voice library utilities
 export {
   NEURAL_VOICE_LIBRARY,
-  CertifiedVoice,
-  VoiceCategory,
   getVoicesByCategory,
   getRandomVoice,
   findVoiceById
+} from './voices';
+
+export type {
+  CertifiedVoice,
+  VoiceCategory
 } from './voices';
