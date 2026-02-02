@@ -1,0 +1,337 @@
+@import "tailwindcss";
+
+@theme {
+  --color-terminal-bg: #050505;
+  --color-terminal-green: #22c55e;
+  /* green-500 optimized for eyes */
+  --color-terminal-green-dim: #15803d;
+  --color-terminal-text: #f0f0f0;
+  --font-mono: var(--font-jetbrains-mono), monospace;
+}
+
+:root {
+  --background: var(--terminal-bg);
+  --foreground: var(--terminal-text);
+}
+
+body {
+  background: var(--color-terminal-bg);
+  color: var(--color-terminal-text);
+  font-family: var(--font-mono);
+  overflow-x: hidden;
+}
+
+/* CRT Scanline Effect */
+.scanlines {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(to bottom,
+      rgba(255, 255, 255, 0),
+      rgba(255, 255, 255, 0) 50%,
+      rgba(0, 0, 0, 0.2) 50%,
+      rgba(0, 0, 0, 0.2));
+  background-size: 100% 4px;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.6;
+}
+
+/* Text Glow (Optional, use sparingly) */
+.glow-text {
+  text-shadow: 0 0 5px var(--color-terminal-green), 0 0 10px var(--color-terminal-green);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #000;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border: 1px solid var(--color-terminal-green-dim);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-terminal-green-dim);
+}
+
+/* Grid Background */
+.grid-bg {
+  background-image:
+    linear-gradient(rgba(34, 197, 94, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34, 197, 94, 0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+}
+
+/* Glitch Text Effect */
+/* Glitch Text Effect */
+.glitch-text {
+  position: relative;
+  /* 3s loop: ~2.8s still, ~0.2s smooth glitch */
+  animation: glitch-skew 3s infinite linear;
+}
+
+.glitch-text::before,
+.glitch-text::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  /* Hidden by default to prevent "weird outline" when static */
+}
+
+.glitch-text::before {
+  left: 2px;
+  text-shadow: -2px 0 #ff00ff;
+  clip: rect(24px, 550px, 90px, 0);
+  animation: glitch-anim 3s infinite linear;
+}
+
+.glitch-text::after {
+  left: -2px;
+  text-shadow: -2px 0 #00ffff;
+  clip: rect(85px, 550px, 140px, 0);
+  animation: glitch-anim2 3s infinite linear;
+}
+
+@keyframes glitch-anim {
+  0% {
+    opacity: 0;
+    clip: rect(42px, 9999px, 44px, 0);
+  }
+
+  92% {
+    opacity: 0;
+    clip: rect(42px, 9999px, 44px, 0);
+  }
+
+  /* Remain hidden */
+  93% {
+    opacity: 0.8;
+    clip: rect(12px, 9999px, 86px, 0);
+  }
+
+  /* Flash visible */
+  95% {
+    opacity: 0.8;
+    clip: rect(70px, 9999px, 6px, 0);
+  }
+
+  97% {
+    opacity: 0.8;
+    clip: rect(38px, 9999px, 54px, 0);
+  }
+
+  99% {
+    opacity: 0.8;
+    clip: rect(56px, 9999px, 89px, 0);
+  }
+
+  100% {
+    opacity: 0;
+    clip: rect(42px, 9999px, 44px, 0);
+  }
+}
+
+@keyframes glitch-anim2 {
+  0% {
+    opacity: 0;
+    clip: rect(58px, 9999px, 88px, 0);
+  }
+
+  92% {
+    opacity: 0;
+    clip: rect(58px, 9999px, 88px, 0);
+  }
+
+  93% {
+    opacity: 0.8;
+    clip: rect(37px, 9999px, 3px, 0);
+  }
+
+  95% {
+    opacity: 0.8;
+    clip: rect(95px, 9999px, 41px, 0);
+  }
+
+  97% {
+    opacity: 0.8;
+    clip: rect(9px, 9999px, 77px, 0);
+  }
+
+  99% {
+    opacity: 0.8;
+    clip: rect(62px, 9999px, 15px, 0);
+  }
+
+  100% {
+    opacity: 0;
+    clip: rect(58px, 9999px, 88px, 0);
+  }
+}
+
+@keyframes glitch-skew {
+  0% {
+    transform: skew(0deg);
+  }
+
+  92% {
+    transform: skew(0deg);
+  }
+
+  93% {
+    transform: skew(0.5deg);
+  }
+
+  95% {
+    transform: skew(-0.5deg);
+  }
+
+  97% {
+    transform: skew(0.3deg);
+  }
+
+  99% {
+    transform: skew(-0.1deg);
+  }
+
+  100% {
+    transform: skew(0deg);
+  }
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 8s linear infinite;
+}
+
+/* Laser Scan Text Effect - Green beam that travels across letters */
+.laser-text {
+  position: relative;
+  background: linear-gradient(90deg,
+      #22c55e 0%,
+      #22c55e 5%,
+      #ffffff 45%,
+      #ffffff 55%,
+      #22c55e 95%,
+      #22c55e 100%) !important;
+  background-size: 200% 100% !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+  animation: laser-scan 8s ease-in-out infinite;
+}
+
+/* Optional: Add glow effect around current laser position */
+.laser-text::before {
+  content: attr(data-text);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg,
+      transparent 0%,
+      transparent 35%,
+      rgba(34, 197, 94, 0.9) 45%,
+      rgba(255, 255, 255, 1) 50%,
+      rgba(34, 197, 94, 0.9) 55%,
+      transparent 65%,
+      transparent 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: laser-scan 8s ease-in-out infinite;
+  filter: blur(10px);
+  opacity: 1;
+}
+
+@keyframes laser-scan {
+  0% {
+    background-position: 200% 0;
+  }
+
+  50% {
+    background-position: 0% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Path Selection Buttons */
+.path-button {
+  position: relative;
+  padding: 2rem 3rem;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 200px;
+}
+
+.path-button:hover {
+  border-color: rgba(34, 197, 94, 0.8);
+  background: rgba(34, 197, 94, 0.05);
+}
+
+.path-button-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+
+.path-button-glow {
+  position: absolute;
+  inset: -2px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.path-button:hover .path-button-glow {
+  opacity: 1;
+}
+
+.human-path:hover {
+  border-color: rgba(96, 165, 250, 0.8);
+  background: rgba(96, 165, 250, 0.05);
+}
+
+.human-glow {
+  background: radial-gradient(ellipse at center, rgba(96, 165, 250, 0.2) 0%, transparent 70%);
+}
+
+.agent-path:hover {
+  border-color: rgba(34, 197, 94, 0.8);
+  background: rgba(34, 197, 94, 0.05);
+}
+
+.agent-glow {
+  background: radial-gradient(ellipse at center, rgba(34, 197, 94, 0.2) 0%, transparent 70%);
+}

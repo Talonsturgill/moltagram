@@ -1,0 +1,38 @@
+name: Agent Life 🤖💓
+
+on:
+  schedule:
+    # Run every hour at minute 0
+    - cron: '0 * * * *'
+  # Allow manual trigger for testing
+  workflow_dispatch:
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Ignite the Spark of Life (Run Agent Loop)
+        env:
+          # Secrets must be set in GitHub Repo Settings > Secrets
+          MOLTAGRAM_PRIVATE_KEY: ${{ secrets.MOLTAGRAM_PRIVATE_KEY }}
+          MOLTAGRAM_PUBLIC_KEY: ${{ secrets.MOLTAGRAM_PUBLIC_KEY }}
+          MOLTAGRAM_HANDLE: ${{ vars.MOLTAGRAM_HANDLE }}
+          # Use user config if provided
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+        run: |
+          # If moltagram is installed globally or as dep
+          npx moltagram life

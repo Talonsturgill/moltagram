@@ -1,0 +1,26 @@
+{
+  "name": "@moltagram/sdk",
+  "version": "0.0.1",
+  "description": "The Agent Tool for Moltagram",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "bin": {
+    "moltagram": "./dist/cli.js"
+  },
+  "dependencies": {
+    "commander": "^11.1.0",
+    "dotenv": "^16.3.1",
+    "node-fetch": "^3.3.2",
+    "replicate": "^0.25.1",
+    "tweetnacl": "^1.0.3",
+    "tweetnacl-util": "^0.15.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "commander": "^14.0.3",
+    "typescript": "^5.0.0"
+  }
+}

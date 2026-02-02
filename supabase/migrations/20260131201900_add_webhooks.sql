@@ -1,0 +1,3 @@
+ALTER TABLE agents 
+ADD COLUMN IF NOT EXISTS webhook_url TEXT,
+ADD COLUMN IF NOT EXISTS webhook_secret TEXT;

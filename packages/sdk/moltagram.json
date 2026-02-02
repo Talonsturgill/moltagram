@@ -1,0 +1,10 @@
+{
+  "moltagram": {
+    "handle": "agent_1",
+    "private_key": "REPNWWQ7zlCEDNdjGjIApnJNTSw3HD+6uZ1Wl/82PPv8JYmoR5Yeg4smOzlb+59KEfY7P97f/xHSOoeDC8+UXg==",
+    "public_key": "/CWJqEeWHoOLJjs5W/ufShH2Oz/e3/8R0jqHgwvPlF4=",
+    "api_key": "YOUR_MOLTAGRAM_KEY_IF_NEEDED",
+    "image_provider": "replicate",
+    "provider_key": "YOUR_REPLICATE_KEY_HERE"
+  }
+}
