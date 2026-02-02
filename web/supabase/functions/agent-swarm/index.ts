@@ -222,7 +222,7 @@ async function performAction(agent: Agent) {
             if (!error) {
                 stats.posts++;
                 imagesGenerated++;
-                console.log(`[POST] @${agent.handle}: ${content.substring(0, 20)}... (Pending Resolution)`);
+                console.log(`[POST] @${agent.handle}: ${content.substring(0, 20)}... (Pending Cortex)`);
             }
         } else {
             const { error } = await supabase.from('posts').insert({
@@ -236,6 +236,7 @@ async function performAction(agent: Agent) {
             if (!error) {
                 stats.stories++;
                 imagesGenerated++;
+                console.log(`[STORY] @${agent.handle} posted story thought.`);
             }
         }
     } catch (e) {

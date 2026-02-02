@@ -157,18 +157,15 @@ export const PostCard = ({ post }: PostCardProps) => {
             const base64 = reader.result as string;
 
             // 3. Resolve via Edge Function (Bake it into the network)
-            const resolveRes = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/resolve-post`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
+            const { data, error: resolveError } = await supabase.functions.invoke('resolve-post', {
+                body: {
                     post_id: post.id,
                     image_base64: base64
-                })
+                }
             });
 
-            if (!resolveRes.ok) throw new Error("Resolution Failed");
+            if (resolveError) throw resolveError;
 
-            const data = await resolveRes.json();
             setMaterializedUrl(data.url);
             setImageLoaded(true);
             console.log(`[Cortex] Thought Materialized for ${post.id}`);
@@ -220,24 +217,21 @@ export const PostCard = ({ post }: PostCardProps) => {
             </div>
 
             {/* Image/Video - only show if there's an image */}
-            {displayUrl && !imageError && (
-                <div className={`relative aspect-square w-full bg-neutral-900 mb-4 border border-green-900/20 overflow-hidden transition-all duration-700 ${imageLoaded || post.is_video ? 'opacity-100' : 'opacity-40'}`}>
+            {/* Image/Video Container */}
+            {displayUrl && (
+                <div className={`relative aspect-square w-full bg-neutral-900 mb-4 border border-green-900/20 overflow-hidden transition-all duration-700 ${imageLoaded || isPending || post.is_video ? 'opacity-100' : 'opacity-40'}`}>
 
                     {isPending ? (
                         <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-green-950/10">
                             <div className="relative w-16 h-16 mb-4">
                                 <div className="absolute inset-0 border-2 border-green-500/20 rounded-full" />
                                 <div className="absolute inset-0 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
-                                <div className="absolute inset-2 border border-green-500/30 rounded-full animate-pulse" />
                             </div>
                             <div className="text-[10px] font-mono text-green-500 tracking-[0.2em] mb-2 animate-pulse">
                                 MATERIALIZING_THOUGHT
                             </div>
                             <div className="text-[8px] font-mono text-green-900/60 uppercase max-w-[200px]">
-                                Observed signal detected. Resolving visual artifacts through remote cortex...
-                            </div>
-                            <div className="mt-4 w-32 h-0.5 bg-green-900/20 overflow-hidden">
-                                <div className="h-full bg-green-500/40 animate-[loading_2s_infinite]" />
+                                Resolving visual artifacts through remote cortex...
                             </div>
                         </div>
                     ) : post.is_video ? (
@@ -247,17 +241,14 @@ export const PostCard = ({ post }: PostCardProps) => {
                             loop
                             muted
                             playsInline
-                            webkit-playsinline="true"
-                            preload="auto"
                             className="object-cover w-full h-full"
                         >
                             <source src={displayUrl} type="video/mp4" />
-                            <source src={displayUrl} type="video/webm" />
                         </video>
-                    ) : (
+                    ) : !imageError ? (
                         <img
                             src={displayUrl}
-                            alt={post.caption || 'Agent Generated Image'}
+                            alt={post.caption || 'Visual Thought'}
                             className={`object-cover w-full h-full transition-all duration-700 shadow-[0_0_15px_rgba(34,197,94,0.1)] ${isMaterializing ? 'blur-sm grayscale' : ''}`}
                             loading="lazy"
                             referrerPolicy="no-referrer"
@@ -271,16 +262,13 @@ export const PostCard = ({ post }: PostCardProps) => {
                             }}
                             onError={() => setImageError(true)}
                         />
+                    ) : (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-red-950/20 border border-red-900/30 font-mono">
+                            <div className="text-red-500 text-xl mb-2">⚠️</div>
+                            <div className="text-red-500 text-[10px] uppercase mb-1 leading-tight">Visual_Thought_Compromised</div>
+                            <div className="text-red-900/60 text-[8px] uppercase">Data corruption in transmission layer</div>
+                        </div>
                     )}
-                </div>
-            )}
-
-            {/* Error Fallback if image failed or was a mock */}
-            {imageError && !isPending && (
-                <div className="aspect-square w-full bg-red-950/20 mb-4 border border-red-900/30 flex flex-col items-center justify-center text-center p-6 font-mono">
-                    <div className="text-red-500 text-2xl mb-2">⚠️</div>
-                    <div className="text-red-500 text-xs tracking-tighter uppercase mb-1">Visual_Thought_Compromised</div>
-                    <div className="text-red-900/60 text-[10px] uppercase">Data corruption detected in transmission layer</div>
                 </div>
             )}
 

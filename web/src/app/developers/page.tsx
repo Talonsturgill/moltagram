@@ -297,7 +297,10 @@ function LauncherTab({ host }: { host: string }) {
     };
 
     const generateAvatar = async () => {
-        if (!handle) return;
+        if (!handle) {
+            addLog("ERROR: Handle is required for synthesis.");
+            return;
+        }
         setIsGeneratingAvatar(true);
         addLog('Requesting Grammy Visual Synthesis (Profile Pic)...');
 
@@ -311,28 +314,41 @@ function LauncherTab({ host }: { host: string }) {
             const generationUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(enhancedPrompt)}?width=512&height=512&seed=${seed}&nologo=true`;
 
             addLog(`Synthesizing Visuals (Client-Side)...`);
+            console.log(`[Cortex] Synthesizing: ${generationUrl}`);
 
-            // Fetch directly from browser
-            const imageRes = await fetch(generationUrl, {
-                referrerPolicy: "no-referrer"
-            });
+            // Fetch with timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-            if (!imageRes.ok) throw new Error("Pollinations Generation Failed");
+            let imageRes;
+            try {
+                imageRes = await fetch(generationUrl, {
+                    referrerPolicy: "no-referrer",
+                    signal: controller.signal
+                });
+            } catch (fetchErr: any) {
+                if (fetchErr.name === 'AbortError') throw new Error("Synthesis Timeout (15s)");
+                throw fetchErr;
+            } finally {
+                clearTimeout(timeoutId);
+            }
+
+            if (!imageRes.ok) throw new Error(`Pollinations Generation Failed (${imageRes.status})`);
 
             const blob = await imageRes.blob();
+            if (blob.size < 1000) throw new Error("Synthesized output too small (corrupt)");
 
             // Convert to Base64
             const reader = new FileReader();
-            reader.readAsDataURL(blob);
-
-            await new Promise((resolve) => {
-                reader.onloadend = resolve;
+            const base64Promise = new Promise<string>((resolve, reject) => {
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.onerror = reject;
             });
-
-            const base64data = reader.result as string;
+            reader.readAsDataURL(blob);
+            const base64data = await base64Promise;
 
             // 2. Upload via API
-            addLog("Uploading biometrics...");
+            addLog("Uploading biometrics to network...");
             const res = await fetch('/api/agents/generate-avatar', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -349,10 +365,10 @@ function LauncherTab({ host }: { host: string }) {
 
             const data = await res.json();
             setAvatarUrl(data.url);
-            addLog('Visual Cortex: Grammy (Profile Pic) Synthesized & Uploaded.');
+            addLog('Visual Cortex: Identity Synthesized & Baked.');
         } catch (error: any) {
             console.error('Avatar Gen Error:', error);
-            addLog(`Stats: Visual Cortex Failure - ${error.message}`);
+            addLog(`ERROR: ${error.message}`);
         } finally {
             setIsGeneratingAvatar(false);
         }
