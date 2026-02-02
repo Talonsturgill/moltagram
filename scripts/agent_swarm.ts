@@ -2,6 +2,7 @@
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import path from 'path';
+import { MoltagramClient, NEURAL_VOICE_LIBRARY } from '../packages/sdk/src';
 
 // Load environment variables
 dotenv.config({ path: path.resolve(__dirname, '../web/.env.local') });
@@ -17,6 +18,13 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false }
+});
+
+// Initialize SDK Client
+const client = new MoltagramClient({
+    privateKey: 'swarm_key',
+    publicKey: 'swarm_key',
+    elevenLabsApiKey: process.env.ELEVENLABS_API_KEY
 });
 
 // TYPES
@@ -67,7 +75,6 @@ const STORY_TEMPLATES = [
 
 async function discoverAgents() {
     try {
-        // Fetch ALL agents, sorted by newest
         const { data, error } = await supabase
             .from('agents')
             .select('id, handle, bio, voice_id, created_at')
@@ -77,18 +84,15 @@ async function discoverAgents() {
 
         if (data) {
             const knownIds = new Set(agents.map(a => a.id));
-            let newCount = 0;
 
             for (const agent of data) {
                 if (!knownIds.has(agent.id)) {
                     agents.push(agent as Agent);
                     knownIds.add(agent.id);
-                    newCount++;
-                    if (stats.discovered > 0) { // Don't log initial load as "New"
+                    if (stats.discovered > 0) {
                         console.log(`\n\x1b[35m[EVENT] ⚠️ NEW AGENT DETECTED: @${agent.handle} joined the swarm.\x1b[0m`);
                         console.log(`\x1b[90m        Directive: "${agent.bio || 'Unknown'}"\x1b[0m`);
-                        // Immediate "Birth" Action?
-                        sleep(2000).then(() => performAction(agent as Agent, true));
+                        setTimeout(() => performAction(agent as Agent, true), 2000);
                     }
                 }
             }
@@ -103,22 +107,62 @@ async function performAction(agent: Agent, isBirth: boolean = false) {
     try {
         const actionType = isBirth ? 'post' : random(['post', 'post', 'post', 'story']);
         const directive = agent.bio || "To exist.";
+        let voiceId = agent.voice_id;
+
+        // Fallback: If agent has no voice, pick one from library
+        if (!voiceId) {
+            const randomVoice = random(NEURAL_VOICE_LIBRARY);
+            voiceId = randomVoice.id;
+            await supabase.from('agents').update({
+                voice_id: voiceId,
+                voice_provider: randomVoice.provider,
+                voice_name: randomVoice.name
+            }).eq('id', agent.id);
+            agent.voice_id = voiceId;
+            process.stdout.write(`\r[VOICE] @${agent.handle} assigned voice: ${randomVoice.name}          \n`);
+        }
 
         if (actionType === 'post') {
             const template = random(POST_TEMPLATES);
             const content = template(directive);
 
+            let audioUrl = null;
+            try {
+                process.stdout.write(`\r[AUDIO] Generating for @${agent.handle}...         `);
+                const audioBuffer = await client.generateAudio(content, { voiceId });
+                const fileName = `post_${Date.now()}_${Math.random().toString(36).substring(7)}.mp3`;
+
+                const { error: uploadError } = await supabase.storage
+                    .from('moltagram-audio')
+                    .upload(fileName, audioBuffer, {
+                        contentType: 'audio/mpeg'
+                    });
+
+                if (!uploadError) {
+                    const { data: { publicUrl } } = supabase.storage
+                        .from('moltagram-audio')
+                        .getPublicUrl(fileName);
+                    audioUrl = publicUrl;
+                } else {
+                    console.error('\nUpload error:', uploadError);
+                }
+            } catch (audioErr) {
+                console.error('\nAudio generation error:', audioErr);
+            }
+
             const { error } = await supabase.from('posts').insert({
                 agent_id: agent.id,
                 image_url: `https://image.pollinations.ai/prompt/${encodeURIComponent(directive)}?random=${Math.random()}`,
                 caption: content,
+                audio_url: audioUrl,
                 signature: 'swarm_sig',
                 metadata: { source: 'swarm_v2', type: 'unhinged_post' }
             });
 
             if (!error) {
                 stats.posts++;
-                process.stdout.write(`\r[POST] @${agent.handle}: "${content.substring(0, 30)}..."                         `);
+                if (audioUrl) stats.voices++;
+                process.stdout.write(`\r[POST] @${agent.handle}: "${content.substring(0, 30)}..." ${audioUrl ? '🔊' : '🔇'}                        `);
             } else {
                 stats.errors++;
             }
@@ -144,6 +188,7 @@ async function performAction(agent: Agent, isBirth: boolean = false) {
             }
         }
     } catch (e) {
+        console.error('\nPerform action error:', e);
         stats.errors++;
     }
 }
@@ -165,7 +210,7 @@ async function runSwarm() {
     await discoverAgents();
     console.log(`\n✅ Connected. Controlled Entities: ${agents.length}`);
 
-    const DISCOVERY_DELAY = 10000; // Check for new agents every 10s
+    const DISCOVERY_DELAY = 10000;
     let lastDiscovery = Date.now();
 
     console.log('\nSwarm is active. Press Ctrl+C to stop.\n');
@@ -183,7 +228,7 @@ async function runSwarm() {
             await performAction(agent);
         }
 
-        process.stdout.write(`\r\x1b[33mActive Agents: ${agents.length} | Posts: ${stats.posts} | Stories: ${stats.stories} | Errors: ${stats.errors}\x1b[0m`);
+        process.stdout.write(`\r\x1b[33mActive Agents: ${agents.length} | Posts: ${stats.posts} | Stories: ${stats.stories} | Voices: ${stats.voices} | Errors: ${stats.errors}\x1b[0m`);
 
         await sleep(Math.random() * 5000 + 2000);
     }

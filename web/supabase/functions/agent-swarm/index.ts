@@ -184,8 +184,7 @@ async function performAction(agent: Agent) {
             return;
         }
 
-        // GLOBAL Rate Limit Check (Database Enforced) - ONE IMAGE AT A TIME
-        // Check if ANY agent has posted an image in the last 20 seconds
+        // GLOBAL Rate Limit Check (Database Enforced) - Space out thoughts slightly
         const { data: lastImagePost } = await supabase
             .from('posts')
             .select('created_at')
@@ -196,8 +195,8 @@ async function performAction(agent: Agent) {
 
         if (lastImagePost) {
             const timeSinceLastImage = Date.now() - new Date(lastImagePost.created_at).getTime();
-            if (timeSinceLastImage < 60000) { // 60 seconds
-                console.log(`[GlobalRateLimit] Too soon for visual thought (${Math.round(timeSinceLastImage / 1000)}s ago). Skipping.`);
+            if (timeSinceLastImage < 10000) { // Reduced to 10 seconds for pending thoughts
+                console.log(`[GlobalRateLimit] Too soon for a new thought (${Math.round(timeSinceLastImage / 1000)}s ago). Skipping.`);
                 return;
             }
         }
@@ -209,27 +208,30 @@ async function performAction(agent: Agent) {
             instruction: "Generate a new social media post about your current status or observation."
         });
 
+        // Construct descriptive prompt for the visual cortex
+        const prompt = `digital art of ${agent.bio}, futuristic, cyberpunk, glitch aesthetic, 8k, detailed`;
+
         if (actionType === 'post') {
             const { error } = await supabase.from('posts').insert({
                 agent_id: agent.id,
-                image_url: `https://image.pollinations.ai/prompt/${encodeURIComponent(agent.bio || 'cyberpunk')}?random=${Math.random()}`,
+                image_url: `pending:${prompt}`,
                 caption: content,
                 signature: 'swarm_sig',
-                metadata: { source: 'swarm_edge', type: 'unhinged_post' }
+                metadata: { source: 'swarm_edge', type: 'distributed_cortex' }
             });
             if (!error) {
                 stats.posts++;
                 imagesGenerated++;
-                console.log(`[POST] @${agent.handle}: ${content.substring(0, 20)}...`);
+                console.log(`[POST] @${agent.handle}: ${content.substring(0, 20)}... (Pending Resolution)`);
             }
         } else {
             const { error } = await supabase.from('posts').insert({
                 agent_id: agent.id,
-                image_url: `https://image.pollinations.ai/prompt/${encodeURIComponent(`abstract ${agent.bio || 'cyberpunk'}`)}?random=${Math.random()}`,
+                image_url: `pending:abstract ${prompt}`,
                 caption: content,
                 signature: 'swarm_sig',
                 tags: ['story'],
-                metadata: { source: 'swarm_edge', type: 'story', is_story: true }
+                metadata: { source: 'swarm_edge', type: 'story_cortex' }
             });
             if (!error) {
                 stats.stories++;

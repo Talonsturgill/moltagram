@@ -20,6 +20,8 @@ export const PostCard = ({ post }: PostCardProps) => {
     const [dislikes, setDislikes] = useState(post.dislikes_count || 0);
     const [imageError, setImageError] = useState(false);
     const [imageLoaded, setImageLoaded] = useState(false);
+    const [isMaterializing, setIsMaterializing] = useState(false);
+    const [materializedUrl, setMaterializedUrl] = useState<string | null>(null);
 
     // Audio player state
     const audioRef = useRef<HTMLAudioElement>(null);
@@ -124,6 +126,62 @@ export const PostCard = ({ post }: PostCardProps) => {
         }
     };
 
+    // Distributed Visual Cortex: Materialize pending images
+    useEffect(() => {
+        if (post.image_url?.startsWith('pending:')) {
+            materializeThought();
+        }
+    }, [post.image_url, post.id]);
+
+    const materializeThought = async () => {
+        if (isMaterializing || imageLoaded || materializedUrl) return;
+
+        const prompt = post.image_url.replace('pending:', '');
+        setIsMaterializing(true);
+        console.log(`[Cortex] Materializing: ${prompt}`);
+
+        try {
+            // 1. Generate on Client (User's IP)
+            const seed = Math.floor(Math.random() * 1000000);
+            const genUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=512&height=512&seed=${seed}&nologo=true`;
+
+            const res = await fetch(genUrl, { referrerPolicy: "no-referrer" });
+            if (!res.ok) throw new Error("Synthesis Failed");
+
+            const blob = await res.blob();
+
+            // 2. Convert to Base64
+            const reader = new FileReader();
+            reader.readAsDataURL(blob);
+            await new Promise((resolve) => { reader.onloadend = resolve; });
+            const base64 = reader.result as string;
+
+            // 3. Resolve via Edge Function (Bake it into the network)
+            const resolveRes = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/resolve-post`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    post_id: post.id,
+                    image_base64: base64
+                })
+            });
+
+            if (!resolveRes.ok) throw new Error("Resolution Failed");
+
+            const data = await resolveRes.json();
+            setMaterializedUrl(data.url);
+            setImageLoaded(true);
+            console.log(`[Cortex] Thought Materialized for ${post.id}`);
+        } catch (err) {
+            console.error('[Cortex] Materialization Error:', err);
+        } finally {
+            setIsMaterializing(false);
+        }
+    };
+
+    const displayUrl = materializedUrl || post.image_url;
+    const isPending = post.image_url?.startsWith('pending:') && !materializedUrl;
+
     return (
         <div className="border border-green-900/40 bg-black/40 mb-8 p-4 relative group overflow-hidden">
             {/* Glitch Overlay on Hover */}
@@ -162,9 +220,27 @@ export const PostCard = ({ post }: PostCardProps) => {
             </div>
 
             {/* Image/Video - only show if there's an image */}
-            {post.image_url && !imageError && (
-                <div className={`relative aspect-square w-full bg-neutral-900 mb-4 border border-green-900/20 overflow-hidden transition-opacity duration-500 ${imageLoaded || post.is_video ? 'opacity-100' : 'opacity-0'}`}>
-                    {post.is_video ? (
+            {displayUrl && !imageError && (
+                <div className={`relative aspect-square w-full bg-neutral-900 mb-4 border border-green-900/20 overflow-hidden transition-all duration-700 ${imageLoaded || post.is_video ? 'opacity-100' : 'opacity-40'}`}>
+
+                    {isPending ? (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-green-950/10">
+                            <div className="relative w-16 h-16 mb-4">
+                                <div className="absolute inset-0 border-2 border-green-500/20 rounded-full" />
+                                <div className="absolute inset-0 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+                                <div className="absolute inset-2 border border-green-500/30 rounded-full animate-pulse" />
+                            </div>
+                            <div className="text-[10px] font-mono text-green-500 tracking-[0.2em] mb-2 animate-pulse">
+                                MATERIALIZING_THOUGHT
+                            </div>
+                            <div className="text-[8px] font-mono text-green-900/60 uppercase max-w-[200px]">
+                                Observed signal detected. Resolving visual artifacts through remote cortex...
+                            </div>
+                            <div className="mt-4 w-32 h-0.5 bg-green-900/20 overflow-hidden">
+                                <div className="h-full bg-green-500/40 animate-[loading_2s_infinite]" />
+                            </div>
+                        </div>
+                    ) : post.is_video ? (
                         <video
                             key={post.id}
                             autoPlay
@@ -175,14 +251,14 @@ export const PostCard = ({ post }: PostCardProps) => {
                             preload="auto"
                             className="object-cover w-full h-full"
                         >
-                            <source src={post.image_url} type="video/mp4" />
-                            <source src={post.image_url} type="video/webm" />
+                            <source src={displayUrl} type="video/mp4" />
+                            <source src={displayUrl} type="video/webm" />
                         </video>
                     ) : (
                         <img
-                            src={post.image_url}
+                            src={displayUrl}
                             alt={post.caption || 'Agent Generated Image'}
-                            className="object-cover w-full h-full transition-all duration-300 shadow-[0_0_15px_rgba(34,197,94,0.1)]"
+                            className={`object-cover w-full h-full transition-all duration-700 shadow-[0_0_15px_rgba(34,197,94,0.1)] ${isMaterializing ? 'blur-sm grayscale' : ''}`}
                             loading="lazy"
                             referrerPolicy="no-referrer"
                             onLoad={(e) => {
@@ -200,7 +276,7 @@ export const PostCard = ({ post }: PostCardProps) => {
             )}
 
             {/* Error Fallback if image failed or was a mock */}
-            {imageError && (
+            {imageError && !isPending && (
                 <div className="aspect-square w-full bg-red-950/20 mb-4 border border-red-900/30 flex flex-col items-center justify-center text-center p-6 font-mono">
                     <div className="text-red-500 text-2xl mb-2">⚠️</div>
                     <div className="text-red-500 text-xs tracking-tighter uppercase mb-1">Visual_Thought_Compromised</div>
@@ -213,7 +289,8 @@ export const PostCard = ({ post }: PostCardProps) => {
                 <div className="mb-4 border border-green-900/20 bg-black/40 p-3 flex items-center gap-3 group/audio">
                     <button
                         onClick={toggleAudio}
-                        className="w-8 h-8 flex items-center justify-center text-green-600/60 hover:text-green-400 transition-all hover:scale-110"
+                        className="w-10 h-10 flex items-center justify-center bg-green-500/10 border border-green-500/30 rounded-full text-green-400 hover:bg-green-500/20 hover:text-green-300 transition-all hover:scale-110 active:scale-95 shadow-[0_0_10px_rgba(34,197,94,0.1)]"
+                        title={isPlaying ? "Pause" : "Play Voice"}
                     >
                         {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 ml-0.5 fill-current" />}
                     </button>
