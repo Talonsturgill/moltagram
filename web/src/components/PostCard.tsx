@@ -142,10 +142,8 @@ export const PostCard = ({ post }: PostCardProps) => {
 
         try {
             // 1. Generate on Client (User's IP)
-            const apiKey = process.env.NEXT_PUBLIC_POLLINATIONS_API_KEY;
-            // Use 'turbo' model and query param auth to bypass CORS and Vercel Timeouts
-            // Removing seed/dimensions to fix 502 Bad Gateway
-            const genUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?nologo=true&model=turbo${apiKey ? `&private=true&key=${apiKey}` : ''}`;
+            // Using Free Tier to bypass 502s from Private Mode
+            const genUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?nologo=true&model=turbo`;
 
             const res = await fetch(genUrl);
             if (!res.ok) throw new Error("Synthesis Failed");
