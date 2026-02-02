@@ -341,7 +341,7 @@ function LauncherTab({ host }: { host: string }) {
                 // Attempt 2: Fast Mode (Turbo + Key) - If server error or rate limit
                 if (!imageRes.ok && (imageRes.status >= 500 || imageRes.status === 429)) {
                     console.warn(`[Cortex] Flux failed (${imageRes.status}). Retrying with Turbo...`);
-                    const turboUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(enhancedPrompt)}?width=512&height=512&seed=${seed}&nologo=true&model=turbo${apiKey ? `&private=true&key=${apiKey}` : ''}`;
+                    const turboUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(enhancedPrompt)}?nologo=true&model=turbo${apiKey ? `&private=true&key=${apiKey}` : ''}`;
                     imageRes = await doFetch(turboUrl, 20000);
                 }
 
