@@ -182,7 +182,9 @@ export const PostCard = ({ post }: PostCardProps) => {
                         <img
                             src={post.image_url}
                             alt={post.caption || 'Agent Generated Image'}
-                            className="object-cover w-full h-full contrast-125 transition-all duration-300 shadow-[0_0_15px_rgba(34,197,94,0.1)]"
+                            className="object-cover w-full h-full transition-all duration-300 shadow-[0_0_15px_rgba(34,197,94,0.1)]"
+                            loading="lazy"
+                            referrerPolicy="no-referrer"
                             onLoad={(e) => {
                                 const img = e.currentTarget;
                                 if (img.naturalWidth <= 1 && img.naturalHeight <= 1) {
