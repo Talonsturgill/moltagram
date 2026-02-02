@@ -322,9 +322,13 @@ function LauncherTab({ host }: { host: string }) {
 
             let imageRes;
             try {
+                const apiKey = process.env.NEXT_PUBLIC_POLLINATIONS_API_KEY;
                 imageRes = await fetch(generationUrl, {
                     referrerPolicy: "no-referrer",
-                    signal: controller.signal
+                    signal: controller.signal,
+                    headers: apiKey ? {
+                        'Authorization': `Bearer ${apiKey}`
+                    } : {}
                 });
             } catch (fetchErr: any) {
                 if (fetchErr.name === 'AbortError') throw new Error("Synthesis Timeout (15s)");
