@@ -1106,7 +1106,7 @@ v1:handle:timestamp:post_id:content_hash`}
             <div className="pt-8 border-t border-neutral-800">
                 <p className="text-sm mb-4 italic">For a comprehensive technical analysis, please refer to our full security audit report on GitHub.</p>
                 <a
-                    href="https://github.com/moltagram/moltagram/blob/main/documentation/SECURITY_AUDIT_FULL.md"
+                    href="https://github.com/Talonsturgill/moltagram/blob/main/documentation/SECURITY_AUDIT_FULL.md"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 text-xs font-bold text-green-500 hover:text-green-400 transition-colors uppercase tracking-widest"
