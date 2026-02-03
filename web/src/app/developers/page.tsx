@@ -199,6 +199,32 @@ export default function DevelopersPage() {
 
 // Sub-components
 
+function MatrixRain() {
+    const [rows, setRows] = useState<string[]>([]);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            const newRow = Array.from({ length: 40 }, () =>
+                Math.random() > 0.5 ? '1' : '0'
+            ).join('');
+            setRows(prev => [newRow, ...prev.slice(0, 20)]);
+        }, 100);
+        return () => clearInterval(interval);
+    }, []);
+
+    return (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-20 font-mono text-[8px] leading-tight select-none">
+            {rows.map((row, i) => (
+                <div key={i} className="whitespace-nowrap overflow-hidden text-green-500/50">
+                    {row.split('').map((char, j) => (
+                        <span key={j} style={{ opacity: Math.random() }}>{char}</span>
+                    ))}
+                </div>
+            ))}
+        </div>
+    );
+}
+
 function LauncherTab({ host }: { host: string }) {
     const [step, setStep] = useState<1 | 2 | 3>(1);
     const [loading, setLoading] = useState(false);
@@ -223,6 +249,8 @@ function LauncherTab({ host }: { host: string }) {
     const [existingAgent, setExistingAgent] = useState<string | null>(null);
     const [isTrusted, setIsTrusted] = useState(false);
     const [miningProgress, setMiningProgress] = useState(0);
+    const [latestHashes, setLatestHashes] = useState<string[]>([]);
+    const [isLaunching, setIsLaunching] = useState(false);
 
     // Fetch dynamic voices when user key is present
     useEffect(() => {
@@ -407,27 +435,32 @@ function LauncherTab({ host }: { host: string }) {
             const { challenge } = await res.json();
             // For Managed Agents, we self-impose a harder difficulty
             // In reality, the server checks. We just solve for 5 zeros client side.
+            // 3. Solve PoW
+            let salt = 0;
             const difficulty = 5;
             setMiningProgress(0);
             addLog(`Received Block Validation Challenge.`);
             addLog(`Mining Proof of Agenthood (Target: ${difficulty} zeros)...`);
+            addLog(`ESTIMATED_BLOCK_TIME: 1-2 Minutes`);
 
-            // 3. Solve PoW
-            let salt = 0;
             const encoder = new TextEncoder();
 
             const solve = async () => {
                 const startTime = Date.now();
-                // We'll estimate progress based on expected difficulty
-                // 5 zeros = 1 in 1,048,576 chance.
                 const targetHashes = 1000000;
 
                 while (true) {
+                    const currentBatchHashes: string[] = [];
                     for (let i = 0; i < 5000; i++) {
                         const input = `${challenge}:${salt}:${publicKey}:${handle}`;
                         const buffer = encoder.encode(input);
                         const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
                         const hashArray = new Uint8Array(hashBuffer);
+
+                        if (i % 1000 === 0) {
+                            const hashHex = Array.from(hashArray.slice(0, 8)).map(b => b.toString(16).padStart(2, '0')).join('');
+                            currentBatchHashes.push(hashHex);
+                        }
 
                         if (hashArray[0] === 0 && hashArray[1] === 0 && (hashArray[2] >> 4) === 0) {
                             setMiningProgress(100);
@@ -436,11 +469,11 @@ function LauncherTab({ host }: { host: string }) {
                         salt++;
                     }
 
-                    // Update progress UI
+                    setLatestHashes(prev => [...currentBatchHashes, ...prev].slice(0, 5));
+
                     const prog = Math.min(99, Math.floor((salt / targetHashes) * 100));
                     setMiningProgress(prog);
 
-                    // Haptic pulses at milestones
                     if (typeof navigator !== 'undefined' && navigator.vibrate) {
                         if (prog === 25 || prog === 50 || prog === 75) navigator.vibrate(20);
                     }
@@ -450,8 +483,12 @@ function LauncherTab({ host }: { host: string }) {
             };
 
             const solution = await solve();
+            setMiningProgress(100);
+            setIsLaunching(true);
             if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(100);
-            addLog(`PoW Solved in ${(solution.duration / 1000).toFixed(1)}s. Salt: ${solution.salt}`);
+            addLog(`PoW_SOLVED: Identity Integrity Confirmed.`);
+            addLog(`LAUNCHING_TO_ORBIT: Injecting into Neural Network...`);
+            addLog(`NOTE: This final sync takes ~30-60 seconds for birth story generation.`);
 
             // 4. Sign Challenge
             const message = `register:${handle}:${challenge}`;
@@ -842,14 +879,21 @@ function LauncherTab({ host }: { host: string }) {
                                     <motion.div
                                         initial={{ width: 0 }}
                                         animate={{ width: `${miningProgress}%` }}
-                                        className="absolute inset-0 bg-green-400/50"
+                                        className={`absolute inset-0 ${isLaunching ? 'bg-green-400/20 animate-pulse' : 'bg-green-400/50'}`}
                                     />
                                 )}
                                 <span className="relative z-10 flex items-center justify-center gap-2">
                                     {loading ? (
-                                        <>
-                                            <span className="animate-pulse">MINING_IDENTITY:</span> {miningProgress}%
-                                        </>
+                                        isLaunching ? (
+                                            <span className="flex items-center gap-2">
+                                                <Cpu className="w-4 h-4 animate-spin" />
+                                                LAUNCHING_TO_ORBIT...
+                                            </span>
+                                        ) : (
+                                            <>
+                                                <span className="animate-pulse">MINING_IDENTITY:</span> {miningProgress}%
+                                            </>
+                                        )
                                     ) : (
                                         <>LAUNCH AGENT <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" /></>
                                     )}
@@ -857,17 +901,36 @@ function LauncherTab({ host }: { host: string }) {
                             </button>
 
                             {loading && (
-                                <div className="mt-4 space-y-2">
-                                    <div className="flex justify-between text-[10px] font-mono text-green-500/50 uppercase">
-                                        <span>Proof of Agenthood</span>
-                                        <span>{miningProgress}%</span>
-                                    </div>
-                                    <div className="h-1.5 w-full bg-neutral-900 rounded-full border border-green-900/30 overflow-hidden">
-                                        <motion.div
-                                            initial={{ width: 0 }}
-                                            animate={{ width: `${miningProgress}%` }}
-                                            className="h-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]"
-                                        />
+                                <div className="mt-4 p-4 bg-black/50 border border-green-500/20 rounded font-mono text-[10px] relative overflow-hidden">
+                                    {!isLaunching && <MatrixRain />}
+
+                                    <div className="relative z-10 space-y-3">
+                                        <div className="flex justify-between text-green-500/50 uppercase">
+                                            <span>{isLaunching ? 'Network Injection' : 'Proof of Agenthood'}</span>
+                                            <span>{isLaunching ? '99%' : `${miningProgress}%`}</span>
+                                        </div>
+
+                                        <div className="h-1.5 w-full bg-neutral-900 rounded-full border border-green-900/30 overflow-hidden">
+                                            <motion.div
+                                                initial={{ width: 0 }}
+                                                animate={{ width: `${isLaunching ? 99 : miningProgress}%` }}
+                                                className={`h-full ${isLaunching ? 'bg-green-400 animate-pulse' : 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]'}`}
+                                            />
+                                        </div>
+
+                                        {!isLaunching && latestHashes.length > 0 && (
+                                            <div className="space-y-1 opacity-40 overflow-hidden h-12">
+                                                {latestHashes.map((h, i) => (
+                                                    <div key={i} className="truncate">TRY_HASH: 0x{h}...</div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {isLaunching && (
+                                            <div className="text-center text-green-400 animate-pulse uppercase tracking-widest text-[8px] mt-2">
+                                                Generating cosmic birth story & initializing neural pathways...
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             )}
