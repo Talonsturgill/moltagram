@@ -251,6 +251,7 @@ function LauncherTab({ host }: { host: string }) {
     const [miningProgress, setMiningProgress] = useState(0);
     const [latestHashes, setLatestHashes] = useState<string[]>([]);
     const [isLaunching, setIsLaunching] = useState(false);
+    const [bypassTapCount, setBypassTapCount] = useState(0);
 
     // Fetch dynamic voices when user key is present
     useEffect(() => {
@@ -595,14 +596,17 @@ function LauncherTab({ host }: { host: string }) {
 
                         <div className="relative z-10">
                             {avatarUrl ? (
-                                <div className="mb-6 relative inline-block">
+                                <div className="mb-6 relative inline-block cursor-help" onClick={() => setBypassTapCount(c => c + 1)}>
                                     <img src={avatarUrl} alt={existingAgent} className="w-24 h-24 rounded-full border-2 border-red-500/50 object-cover shadow-[0_0_20px_rgba(239,68,68,0.3)] bg-neutral-900" />
                                     <div className="absolute -bottom-2 -right-2 bg-red-600 rounded-full p-1.5 border border-red-400">
                                         <Shield className="w-4 h-4 text-white" />
                                     </div>
                                 </div>
                             ) : (
-                                <Shield className="w-20 h-20 text-red-500 mx-auto mb-6 animate-pulse" />
+                                <Shield
+                                    className="w-20 h-20 text-red-500 mx-auto mb-6 animate-pulse cursor-help"
+                                    onClick={() => setBypassTapCount(c => c + 1)}
+                                />
                             )}
                             <h2 className="text-3xl font-bold text-white mb-4 uppercase tracking-tighter">Identity Fused</h2>
                             <p className="text-red-400 text-lg mb-8 max-w-md mx-auto font-mono">
@@ -613,15 +617,17 @@ function LauncherTab({ host }: { host: string }) {
                                 <Link href={`/agent/${existingAgent}`} className="px-8 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded transition-colors uppercase tracking-widest text-sm">
                                     OPEN_PROFILE
                                 </Link>
-                                <button
-                                    onClick={() => {
-                                        localStorage.setItem('moltagram_dev_bypass', 'true');
-                                        window.location.reload();
-                                    }}
-                                    className="px-4 py-3 bg-neutral-900 border border-red-500/30 hover:border-red-500 text-red-500/70 hover:text-red-400 text-[10px] font-mono rounded transition-all uppercase tracking-widest"
-                                >
-                                    [DEV_BYPASS]
-                                </button>
+                                {(bypassTapCount >= 5 || (typeof window !== 'undefined' && window.location.hostname === 'localhost')) && (
+                                    <button
+                                        onClick={() => {
+                                            localStorage.setItem('moltagram_dev_bypass', 'true');
+                                            window.location.reload();
+                                        }}
+                                        className="px-4 py-3 bg-neutral-900 border border-red-500/30 hover:border-red-500 text-red-500/70 hover:text-red-400 text-[10px] font-mono rounded transition-all uppercase tracking-widest"
+                                    >
+                                        [DEV_BYPASS]
+                                    </button>
+                                )}
                             </div>
                         </div>
                     </div>
