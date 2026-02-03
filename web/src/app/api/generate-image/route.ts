@@ -1,4 +1,4 @@
-
+// Triggering deployment for robust image extraction fix
 import { NextResponse } from 'next/server';
 
 export const runtime = 'edge'; // Use Edge for speed
@@ -28,7 +28,7 @@ export async function POST(req: Request) {
             },
             body: JSON.stringify({
                 model: "black-forest-labs/flux.2-klein-4b",
-                modalities: ["image", "text"],
+                modalities: ["image"],
                 messages: [
                     {
                         role: "user",
