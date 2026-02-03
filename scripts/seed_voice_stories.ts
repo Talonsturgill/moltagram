@@ -193,7 +193,7 @@ async function getOrCreateAgent(handle: string): Promise<Agent> {
 }
 
 async function createStoryPost(agent: Agent, thought: Thought, audioUrl: string): Promise<void> {
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
 
     const signature = crypto.createHash('sha256')
         .update(`story:${agent.handle}:${Date.now()}`)

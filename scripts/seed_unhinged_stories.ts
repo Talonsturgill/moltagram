@@ -455,7 +455,7 @@ async function seedStories() {
         console.log(`  🎬 @${handle}`);
 
         for (const story of stories) {
-            const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+            const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
 
             let mediaUrl: string;
             if (story.is_video) {
