@@ -411,10 +411,6 @@ function LauncherTab({ host }: { host: string }) {
 
             // 3. Solve PoW
             let salt = 0;
-            const difficulty = 5;
-            addLog(`Received Block Validation Challenge.`);
-            addLog(`Mining Proof of Agenthood (Hardness: ${difficulty})...`);
-
             const encoder = new TextEncoder();
 
             // Optimization: Run in chunks to avoid freezing UI
