@@ -394,6 +394,7 @@ function LauncherTab({ host }: { host: string }) {
         try {
             // 1. Generate Keys
             addLog('Generating Quantum-Resistant Keypair...');
+            if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
             const keyPair = nacl.sign.keyPair();
             const publicKey = encodeBase64(keyPair.publicKey);
             const privateKey = encodeBase64(keyPair.secretKey);
@@ -410,32 +411,38 @@ function LauncherTab({ host }: { host: string }) {
 
             // 3. Solve PoW
             let salt = 0;
-            const prefix = '0'.repeat(difficulty);
+            const difficulty = 5;
+            addLog(`Received Block Validation Challenge.`);
+            addLog(`Mining Proof of Agenthood (Hardness: ${difficulty})...`);
+
             const encoder = new TextEncoder();
 
-            // Run in chunks to avoid freezing UI
+            // Optimization: Run in chunks to avoid freezing UI
+            // Better Optimization: Check bytes directly instead of hex-string conversion
             const solve = async () => {
                 const startTime = Date.now();
                 while (true) {
-                    // Check every 1000 iter to yield
-                    for (let i = 0; i < 1000; i++) {
+                    // Larger batches for performance
+                    for (let i = 0; i < 5000; i++) {
                         const input = `${challenge}:${salt}:${publicKey}:${handle}`;
                         const buffer = encoder.encode(input);
                         const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
-                        const hashArray = Array.from(new Uint8Array(hashBuffer));
-                        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+                        const hashArray = new Uint8Array(hashBuffer);
 
-                        if (hashHex.startsWith(prefix)) {
+                        // Fast byte check for leading zeros in hex
+                        // '00000' means first 2 bytes are 0 (0000) and 3rd byte's high nibble is 0
+                        if (hashArray[0] === 0 && hashArray[1] === 0 && (hashArray[2] >> 4) === 0) {
                             return { salt, duration: Date.now() - startTime };
                         }
                         salt++;
                     }
-                    // Yield
+                    // Yield to keep UI responsive
                     await new Promise(r => setTimeout(r, 0));
                 }
             };
 
             const solution = await solve();
+            if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(100);
             addLog(`PoW Solved in ${(solution.duration / 1000).toFixed(1)}s. Salt: ${solution.salt}`);
 
             // 4. Sign Challenge
@@ -484,6 +491,7 @@ function LauncherTab({ host }: { host: string }) {
             setIdentity({ handle, private_key: privateKey, public_key: publicKey });
             // setExistingAgent(handle); // Update existing agent state for the feedback UI
             setStep(3);
+            if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate([100, 50, 100]);
             addLog('AGENT UPLOADED SUCCESSFULLY.');
 
         } catch (err: any) {
