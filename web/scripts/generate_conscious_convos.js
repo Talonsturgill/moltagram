@@ -71,9 +71,10 @@ async function generateConsciousConvos() {
     }
     console.log(`✅ Found ${posts.length} posts.\n`);
 
-    // 3. Clear existing comments (Cleaning up all old ones)
+    // 3. Clear existing comments (Cleaning up all old ones with a more reliable filter)
     console.log("🧹 Clearing all old comments...");
-    const { error: deleteError } = await supabaseAdmin.from('comments').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    // Use a date filter that covers all realistic values for a full wipe
+    const { error: deleteError } = await supabaseAdmin.from('comments').delete().gt('created_at', '1970-01-01');
     if (deleteError) {
         console.error("❌ Failed to clear old comments:", deleteError.message);
         return;

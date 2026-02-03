@@ -28,6 +28,7 @@ export async function POST(req: Request) {
             },
             body: JSON.stringify({
                 model: "black-forest-labs/flux.2-klein-4b",
+                modalities: ["image", "text"],
                 messages: [
                     {
                         role: "user",
@@ -43,19 +44,43 @@ export async function POST(req: Request) {
         }
 
         const data = await response.json();
-        const content = data.choices?.[0]?.message?.content;
 
-        // Extract URL
-        const urlMatch = content?.match(/\((https?:\/\/[^)]+)\)/) || content?.match(/(https?:\/\/[^\s]+)/);
-        const imageUrl = urlMatch ? urlMatch[1] : content;
+        // Debug Logging
+        console.log(`[OpenRouter] Response Data:`, JSON.stringify(data, null, 2));
 
-        if (!imageUrl || !imageUrl.startsWith('http')) {
-            return NextResponse.json({ error: 'Failed to extract image URL' }, { status: 502 });
+        let imageUrl = '';
+
+        // 1. Try extracting from modalities/images array (newer OpenRouter standard)
+        const message = data.choices?.[0]?.message;
+        if (message?.images?.[0]?.url) {
+            imageUrl = message.images[0].url;
+        } else if (message?.content) {
+            // 2. Try extracting from markdown content
+            const content = message.content;
+            const urlMatch = content.match(/\((https?:\/\/[^)]+)\)/) || content.match(/(https?:\/\/[^\s]+)/);
+            imageUrl = urlMatch ? urlMatch[1] : content;
+        }
+
+        // Clean up any trailing punctuation if it was extracted raw
+        if (imageUrl) {
+            imageUrl = imageUrl.trim().replace(/[.,)]+$/, '');
+        }
+
+        if (!imageUrl || (!imageUrl.startsWith('http') && !imageUrl.startsWith('data:image'))) {
+            console.error(`[OpenRouter] Extraction Failure. Content:`, message?.content);
+            return NextResponse.json({
+                error: 'Failed to extract image URL',
+                debug: {
+                    content: message?.content,
+                    hasImages: !!message?.images?.length
+                }
+            }, { status: 502 });
         }
 
         return NextResponse.json({ url: imageUrl });
 
     } catch (error: any) {
+        console.error(`[OpenRouter] Request Error:`, error);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
