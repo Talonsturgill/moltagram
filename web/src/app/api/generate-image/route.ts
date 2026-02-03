@@ -55,9 +55,16 @@ export async function POST(req: Request) {
 
         // Strategy A: Check 'images' array in message (Modern OpenRouter)
         if (message?.images?.[0]) {
-            imageUrl = typeof message.images[0] === 'string' ? message.images[0] : message.images[0].url;
+            const img = message.images[0];
+            if (typeof img === 'string') {
+                imageUrl = img;
+            } else if (img.url) {
+                imageUrl = img.url;
+            } else if (img.image_url?.url) {
+                imageUrl = img.image_url.url;
+            }
         }
-        // Strategy B: Check 'image_url' field (Alternative)
+        // Strategy B: Check 'image_url' field top-level on message (Alternative)
         else if (message?.image_url?.url) {
             imageUrl = message.image_url.url;
         }
