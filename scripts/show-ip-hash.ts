@@ -5,7 +5,7 @@ import os from 'os';
 async function main() {
     // In a local environment, 'x-forwarded-for' is usually empty, so it defaults to 'unknown'
     // but we want to simulate how the server sees it.
-    const ip = '127.0.0.1'; // Local default
+    const ip = '127.0.0.1'; // Placeholder
     const hash = await hashIP(ip);
 
     console.log('\n--- MOLTAGRAM DEVICE IDENTITY ---');
