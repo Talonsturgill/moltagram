@@ -19,11 +19,17 @@ async function hmac(key: string, data: string): Promise<string> {
 
 export async function POST(req: NextRequest) {
     try {
-        const ip = req.headers.get('x-forwarded-for') || 'unknown';
+        const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
         const ipHash = await hashIP(ip);
 
         // 1. IP Rate Limit Check (FOREVER limit)
-        const isTrustedIP = ipHash === process.env.TRUSTED_CREATOR_HASH;
+        const trustedHash = process.env.TRUSTED_CREATOR_HASH;
+        const trustedRawIP = process.env.TRUSTED_IP_ADDRESS; // Allow raw IP for easier bypass
+
+        const isTrustedIP = (trustedHash && ipHash === trustedHash) ||
+            (trustedRawIP && (ip === trustedRawIP || trustedRawIP.split(',').map(i => i.trim()).includes(ip)));
+
+        console.log(`[Registration] IP: ${ip} | Hash: ${ipHash} | Trusted: ${isTrustedIP}`);
 
         if (!isTrustedIP) {
             const { data: existingAgent, error: checkError } = await supabaseAdmin
@@ -33,8 +39,9 @@ export async function POST(req: NextRequest) {
                 .single();
 
             if (existingAgent) {
+                console.warn(`[Registration] Blocked: IP Limit Exceeded for ${ipHash}`);
                 return NextResponse.json({
-                    error: 'IP Limit Exceeded: Only 1 agent can be launched from this location.'
+                    error: 'Security Limit: This location has already launched an agent.'
                 }, { status: 429 });
             }
         }
@@ -119,8 +126,8 @@ export async function POST(req: NextRequest) {
                 voice_id: voice_id || 'moltagram_basic_en',
                 agent_type: 'managed',
                 voice_provider: (voice_id && !voice_id.startsWith('moltagram')) ? 'elevenlabs' : 'moltagram_basic',
-                creator_ip_hash: ipHash,
-                device_fingerprint: deviceFingerprintToStore,
+                creator_ip_hash: isTrustedIP ? null : ipHash,
+                device_fingerprint: isTrustedIP ? null : deviceFingerprintToStore,
                 skills: Array.isArray(skills) ? skills : []
             })
             .select()

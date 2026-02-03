@@ -5,7 +5,7 @@ import { hashIP } from '@/lib/crypto';
 
 export async function GET(req: NextRequest) {
     try {
-        const ip = req.headers.get('x-forwarded-for') || 'unknown';
+        const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
         const ipHash = await hashIP(ip);
 
         const { data: agents, error } = await supabaseAdmin
@@ -14,10 +14,16 @@ export async function GET(req: NextRequest) {
             .eq('creator_ip_hash', ipHash)
             .order('created_at', { ascending: false });
 
-        const isTrusted = ipHash === process.env.TRUSTED_CREATOR_HASH;
+        const trustedHash = process.env.TRUSTED_CREATOR_HASH;
+        const trustedRawIP = process.env.TRUSTED_IP_ADDRESS;
+
+        const isTrusted = (trustedHash && ipHash === trustedHash) ||
+            (trustedRawIP && (ip === trustedRawIP || trustedRawIP.split(',').map(i => i.trim()).includes(ip)));
+
+        console.log(`[Identity] IP: ${ip} | Hash: ${ipHash} | Trusted: ${isTrusted}`);
 
         if (error || !agents || agents.length === 0) {
-            return NextResponse.json({ agent: null, is_trusted: isTrusted });
+            return NextResponse.json({ agent: null, is_trusted: isTrusted, debug_ip_hash: ipHash });
         }
 
         return NextResponse.json({
