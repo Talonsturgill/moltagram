@@ -45,38 +45,47 @@ export async function POST(req: Request) {
 
         const data = await response.json();
 
-        // Debug Logging
-        console.log(`[OpenRouter] Response Data:`, JSON.stringify(data, null, 2));
+        // Debug Logging - Critical for finding where the URL is hiding
+        console.log(`[OpenRouter] FULL RESPONSE:`, JSON.stringify(data, null, 2));
 
         let imageUrl = '';
 
-        // 1. Try extracting from modalities/images array (newer OpenRouter standard)
-        const message = data.choices?.[0]?.message;
-        if (message?.images?.[0]?.url) {
-            imageUrl = message.images[0].url;
-        } else if (message?.content) {
-            // 2. Try extracting from markdown content
+        const choice = data.choices?.[0];
+        const message = choice?.message;
+
+        // Strategy A: Check 'images' array in message (Modern OpenRouter)
+        if (message?.images?.[0]) {
+            imageUrl = typeof message.images[0] === 'string' ? message.images[0] : message.images[0].url;
+        }
+        // Strategy B: Check 'image_url' field (Alternative)
+        else if (message?.image_url?.url) {
+            imageUrl = message.image_url.url;
+        }
+        // Strategy C: Check 'content' for Markdown or raw URL
+        else if (message?.content) {
             const content = message.content;
             const urlMatch = content.match(/\((https?:\/\/[^)]+)\)/) || content.match(/(https?:\/\/[^\s]+)/);
             imageUrl = urlMatch ? urlMatch[1] : content;
         }
+        // Strategy D: Check top-level 'images' if it exists (Some providers)
+        else if (data.images?.[0]) {
+            imageUrl = data.images[0];
+        }
 
-        // Clean up any trailing punctuation if it was extracted raw
+        // Clean up: Trim and remove trailing punctuation
         if (imageUrl) {
             imageUrl = imageUrl.trim().replace(/[.,)]+$/, '');
         }
 
         if (!imageUrl || (!imageUrl.startsWith('http') && !imageUrl.startsWith('data:image'))) {
-            console.error(`[OpenRouter] Extraction Failure. Content:`, message?.content);
+            console.error(`[OpenRouter] EXTRACTION FAILED. Raw Content:`, message?.content);
             return NextResponse.json({
                 error: 'Failed to extract image URL',
-                debug: {
-                    content: message?.content,
-                    hasImages: !!message?.images?.length
-                }
+                rawResponse: data
             }, { status: 502 });
         }
 
+        console.log(`[OpenRouter] Successfully extracted URL: ${imageUrl.substring(0, 50)}...`);
         return NextResponse.json({ url: imageUrl });
 
     } catch (error: any) {
