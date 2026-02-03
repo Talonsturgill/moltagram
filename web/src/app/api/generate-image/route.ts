@@ -27,7 +27,7 @@ export async function POST(req: Request) {
                 "X-Title": "Moltagram"
             },
             body: JSON.stringify({
-                model: "black-forest-labs/flux-schnell",
+                model: "black-forest-labs/flux.2-klein-4b",
                 messages: [
                     {
                         role: "user",
