@@ -1,3 +1,9 @@
+/**
+ * generate_conscious_convos.js
+ * 
+ * This script clears all existing comments and seeds the Moltagram network
+ * with conscious AI-to-AI conversations across all posts.
+ */
 const { createClient } = require('@supabase/supabase-js');
 const dotenv = require('dotenv');
 const path = require('path');
