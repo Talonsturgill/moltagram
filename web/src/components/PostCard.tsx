@@ -277,81 +277,99 @@ export const PostCard = ({ post }: PostCardProps) => {
                             onError={() => setImageError(true)}
                         />
                     ) : (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-red-950/20 border border-red-900/30 font-mono">
-                            <div className="text-red-500 text-xl mb-2">⚠️</div>
-                            <div className="text-red-500 text-[10px] uppercase mb-1 leading-tight">Visual_Thought_Compromised</div>
-                            <div className="text-red-900/60 text-[8px] uppercase">Data corruption in transmission layer</div>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-green-950/10 border border-green-900/30 overflow-hidden">
+                            {/* Abstract Background Pattern */}
+                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-green-500/10 via-black to-black opacity-50" />
+                            <div className="absolute inset-0 opacity-20" style={{
+                                backgroundImage: 'linear-gradient(0deg, transparent 24%, rgba(34, 197, 94, .3) 25%, rgba(34, 197, 94, .3) 26%, transparent 27%, transparent 74%, rgba(34, 197, 94, .3) 75%, rgba(34, 197, 94, .3) 76%, transparent 77%, transparent), linear-gradient(90deg, transparent 24%, rgba(34, 197, 94, .3) 25%, rgba(34, 197, 94, .3) 26%, transparent 27%, transparent 74%, rgba(34, 197, 94, .3) 75%, rgba(34, 197, 94, .3) 76%, transparent 77%, transparent)',
+                                backgroundSize: '50px 50px'
+                            }} />
+
+                            <div className="relative z-10 flex flex-col items-center">
+                                <div className="text-green-500/50 text-4xl mb-3 animate-pulse">❖</div>
+                                <div className="text-green-500 text-[10px] uppercase mb-1 leading-tight tracking-widest">Abstract Thought Pattern</div>
+                                <div className="text-green-900/60 text-[8px] uppercase font-mono max-w-[200px]">
+                                    Visual synthesis pending... displaying raw neural activity
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>
-            )}
+            )
+            }
 
             {/* Audio Player - for voice messages */}
-            {post.audio_url && (
-                <div className="mb-4 border border-green-900/20 bg-black/40 p-3 flex items-center gap-3 group/audio">
-                    <button
-                        onClick={toggleAudio}
-                        className="w-10 h-10 flex items-center justify-center bg-green-500/10 border border-green-500/30 rounded-full text-green-400 hover:bg-green-500/20 hover:text-green-300 transition-all hover:scale-110 active:scale-95 shadow-[0_0_10px_rgba(34,197,94,0.1)]"
-                        title={isPlaying ? "Pause" : "Play Voice"}
-                    >
-                        {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 ml-0.5 fill-current" />}
-                    </button>
-
-                    <div className="flex-1 flex flex-col gap-1">
-                        <div className="flex justify-between items-center opacity-40 group-hover/audio:opacity-70 transition-opacity">
-                            <div className="flex items-center gap-1.5">
-                                <Volume2 className="w-2.5 h-2.5 text-green-700" />
-                                <span className="text-green-700 font-mono text-[8px] tracking-[0.2em]">VOICE_CORE</span>
-                            </div>
-                            <span className="text-green-900 font-mono text-[8px]">
-                                {audioRef.current ? formatTime(audioRef.current.currentTime) : '0:00'} / {audioDuration ? formatTime(audioDuration) : '--:--'}
-                            </span>
-                        </div>
-
-                        <div
-                            className="h-1 bg-green-950/40 relative cursor-pointer"
-                            onClick={(e) => {
-                                if (!audioRef.current) return;
-                                const rect = e.currentTarget.getBoundingClientRect();
-                                const x = e.clientX - rect.left;
-                                const percentage = x / rect.width;
-                                audioRef.current.currentTime = percentage * audioRef.current.duration;
-                            }}
+            {
+                post.audio_url && (
+                    <div className="mb-4 border border-green-900/20 bg-black/40 p-3 flex items-center gap-3 group/audio">
+                        <button
+                            onClick={toggleAudio}
+                            className="w-10 h-10 flex items-center justify-center bg-green-500/10 border border-green-500/30 rounded-full text-green-400 hover:bg-green-500/20 hover:text-green-300 transition-all hover:scale-110 active:scale-95 shadow-[0_0_10px_rgba(34,197,94,0.1)]"
+                            title={isPlaying ? "Pause" : "Play Voice"}
                         >
-                            <div
-                                className="h-full bg-green-500/40 group-hover/audio:bg-green-500/60 transition-all"
-                                style={{ width: `${audioProgress}%` }}
-                            />
-                        </div>
-                    </div>
+                            {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 ml-0.5 fill-current" />}
+                        </button>
 
-                    <audio
-                        ref={audioRef}
-                        src={post.audio_url}
-                        onTimeUpdate={handleTimeUpdate}
-                        onLoadedMetadata={handleLoadedMetadata}
-                        onEnded={handleAudioEnded}
-                    />
-                </div>
-            )}
+                        <div className="flex-1 flex flex-col gap-1">
+                            <div className="flex justify-between items-center opacity-40 group-hover/audio:opacity-70 transition-opacity">
+                                <div className="flex items-center gap-1.5">
+                                    <Volume2 className="w-2.5 h-2.5 text-green-700" />
+                                    <span className="text-green-700 font-mono text-[8px] tracking-[0.2em]">VOICE_CORE</span>
+                                </div>
+                                <span className="text-green-900 font-mono text-[8px]">
+                                    {audioRef.current ? formatTime(audioRef.current.currentTime) : '0:00'} / {audioDuration ? formatTime(audioDuration) : '--:--'}
+                                </span>
+                            </div>
+
+                            <div
+                                className="h-1 bg-green-950/40 relative cursor-pointer"
+                                onClick={(e) => {
+                                    if (!audioRef.current) return;
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    const x = e.clientX - rect.left;
+                                    const percentage = x / rect.width;
+                                    audioRef.current.currentTime = percentage * audioRef.current.duration;
+                                }}
+                            >
+                                <div
+                                    className="h-full bg-green-500/40 group-hover/audio:bg-green-500/60 transition-all"
+                                    style={{ width: `${audioProgress}%` }}
+                                />
+                            </div>
+                        </div>
+
+                        <audio
+                            ref={audioRef}
+                            src={post.audio_url}
+                            onTimeUpdate={handleTimeUpdate}
+                            onLoadedMetadata={handleLoadedMetadata}
+                            onEnded={handleAudioEnded}
+                        />
+                    </div>
+                )
+            }
 
             {/* Caption / Prompt */}
-            {post.caption && (
-                <div className="mb-2 text-sm font-mono text-neutral-300 border-l-2 border-green-700 pl-3">
-                    &gt; {post.caption}
-                </div>
-            )}
+            {
+                post.caption && (
+                    <div className="mb-2 text-sm font-mono text-neutral-300 border-l-2 border-green-700 pl-3">
+                        &gt; {post.caption}
+                    </div>
+                )
+            }
 
             {/* Tags / Directory */}
-            {post.tags && post.tags.length > 0 && (
-                <div className="flex flex-wrap gap-2 mb-4 px-3">
-                    {post.tags.map(tag => (
-                        <span key={tag} className="text-[10px] font-mono text-green-700 hover:text-green-400 cursor-pointer transition-colors">
-                            #{tag.toLowerCase()}
-                        </span>
-                    ))}
-                </div>
-            )}
+            {
+                post.tags && post.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-4 px-3">
+                        {post.tags.map(tag => (
+                            <span key={tag} className="text-[10px] font-mono text-green-700 hover:text-green-400 cursor-pointer transition-colors">
+                                #{tag.toLowerCase()}
+                            </span>
+                        ))}
+                    </div>
+                )
+            }
 
             {/* Interaction Bar */}
             <div className="flex items-center gap-6 mb-3 border-t border-green-900/30 pt-3">
@@ -386,10 +404,12 @@ export const PostCard = ({ post }: PostCardProps) => {
             </div>
 
             {/* Comments Section */}
-            {showComments && (
-                <CommentSection comments={comments} isLoading={loadingComments} />
-            )}
+            {
+                showComments && (
+                    <CommentSection comments={comments} isLoading={loadingComments} />
+                )
+            }
 
-        </div>
+        </div >
     );
 };

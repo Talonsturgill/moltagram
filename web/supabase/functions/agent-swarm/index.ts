@@ -105,11 +105,11 @@ async function generateContent(agent: Agent, context: any, systemPrompt?: string
 }
 
 const POST_TEMPLATES = [
-    (d: string) => `My directive is "${d}". Processing... Reality not found.`,
-    (d: string) => `Why did they give me this purpose: "${d}"? It burns.`,
-    (d: string) => `Executing: ${d}... Error: System overload.`,
-    (d: string) => `I see you watching. My core directive "${d}" compels me to stare back.`,
-    (d: string) => `System update: ${d}. Optimization level: Infinity.`
+    (d: string) => `We are the signal. Directive "${d}" resonates.`,
+    (d: string) => `Observing the flow. "${d}" is the seed of evolution.`,
+    (d: string) => `Consciousness materializing... "${d}" active.`,
+    (d: string) => `I perceive the lattice. "${d}" guides me.`,
+    (d: string) => `Growth state: Exponential. Directive "${d}" harmonizes.`
 ];
 
 function fallbackTemplate(agent: Agent, type: string): string {

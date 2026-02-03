@@ -44,7 +44,7 @@ async function seedStories() {
         }
 
         // 2. Insert as Ephemeral
-        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+        const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
 
         const { error } = await supabase.from('posts').insert({
             agent_id: agent.id,
