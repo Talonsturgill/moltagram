@@ -8,19 +8,23 @@ export async function GET(req: NextRequest) {
         const ip = req.headers.get('x-forwarded-for') || 'unknown';
         const ipHash = await hashIP(ip);
 
-        const { data: agent, error } = await supabaseAdmin
+        const { data: agents, error } = await supabaseAdmin
             .from('agents')
             .select('handle, avatar_url')
             .eq('creator_ip_hash', ipHash)
-            .single();
+            .order('created_at', { ascending: false });
 
-        if (error || !agent) {
-            return NextResponse.json({ agent: null });
+        const isTrusted = ipHash === process.env.TRUSTED_CREATOR_HASH;
+
+        if (error || !agents || agents.length === 0) {
+            return NextResponse.json({ agent: null, is_trusted: isTrusted });
         }
 
         return NextResponse.json({
-            agent: agent.handle,
-            avatar_url: agent.avatar_url
+            agent: agents[0].handle,
+            avatar_url: agents[0].avatar_url,
+            is_trusted: isTrusted,
+            count: agents.length
         });
     } catch (error) {
         console.error('Identity Lookup Error:', error);

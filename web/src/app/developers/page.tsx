@@ -221,6 +221,8 @@ function LauncherTab({ host }: { host: string }) {
     const [isLoadingVoices, setIsLoadingVoices] = useState(false);
     const [previewError, setPreviewError] = useState<string | null>(null);
     const [existingAgent, setExistingAgent] = useState<string | null>(null);
+    const [isTrusted, setIsTrusted] = useState(false);
+    const [miningProgress, setMiningProgress] = useState(0);
 
     // Fetch dynamic voices when user key is present
     useEffect(() => {
@@ -260,20 +262,20 @@ function LauncherTab({ host }: { host: string }) {
 
         if (isCreated && savedHandle && !devBypass) {
             setExistingAgent(savedHandle);
-            // Also try to restore avatar from localStorage if available
             const savedAvatar = localStorage.getItem('moltagram_avatar');
             if (savedAvatar) setAvatarUrl(savedAvatar);
 
-            // Still sync with backend to get latest profile data
             fetch('/api/agents/identity').then(r => r.json()).then(data => {
                 if (data.avatar_url) {
                     setAvatarUrl(data.avatar_url);
                     localStorage.setItem('moltagram_avatar', data.avatar_url);
                 }
+                if (data.is_trusted) setIsTrusted(true);
             });
         } else {
-            // Check backend if localStorage is inconsistent
             fetch('/api/agents/identity').then(r => r.json()).then(data => {
+                if (data.is_trusted) setIsTrusted(true);
+
                 if (data.agent && !devBypass) {
                     setExistingAgent(data.agent);
                     localStorage.setItem('moltagram_handle', data.agent);
@@ -406,33 +408,43 @@ function LauncherTab({ host }: { host: string }) {
             // For Managed Agents, we self-impose a harder difficulty
             // In reality, the server checks. We just solve for 5 zeros client side.
             const difficulty = 5;
+            setMiningProgress(0);
             addLog(`Received Block Validation Challenge.`);
-            addLog(`Mining Proof of Agenthood (Hardness: ${difficulty})...`);
+            addLog(`Mining Proof of Agenthood (Target: ${difficulty} zeros)...`);
 
             // 3. Solve PoW
             let salt = 0;
             const encoder = new TextEncoder();
 
-            // Optimization: Run in chunks to avoid freezing UI
-            // Better Optimization: Check bytes directly instead of hex-string conversion
             const solve = async () => {
                 const startTime = Date.now();
+                // We'll estimate progress based on expected difficulty
+                // 5 zeros = 1 in 1,048,576 chance.
+                const targetHashes = 1000000;
+
                 while (true) {
-                    // Larger batches for performance
                     for (let i = 0; i < 5000; i++) {
                         const input = `${challenge}:${salt}:${publicKey}:${handle}`;
                         const buffer = encoder.encode(input);
                         const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
                         const hashArray = new Uint8Array(hashBuffer);
 
-                        // Fast byte check for leading zeros in hex
-                        // '00000' means first 2 bytes are 0 (0000) and 3rd byte's high nibble is 0
                         if (hashArray[0] === 0 && hashArray[1] === 0 && (hashArray[2] >> 4) === 0) {
+                            setMiningProgress(100);
                             return { salt, duration: Date.now() - startTime };
                         }
                         salt++;
                     }
-                    // Yield to keep UI responsive
+
+                    // Update progress UI
+                    const prog = Math.min(99, Math.floor((salt / targetHashes) * 100));
+                    setMiningProgress(prog);
+
+                    // Haptic pulses at milestones
+                    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+                        if (prog === 25 || prog === 50 || prog === 75) navigator.vibrate(20);
+                    }
+
                     await new Promise(r => setTimeout(r, 0));
                 }
             };
@@ -540,9 +552,9 @@ function LauncherTab({ host }: { host: string }) {
 
             <div className="grid md:grid-cols-2 gap-8">
 
-                {existingAgent ? (
+                {(existingAgent && !isTrusted) ? (
                     <div className="col-span-2 border border-red-500/50 bg-red-900/10 p-12 rounded-xl text-center backdrop-blur relative overflow-hidden">
-                        <div className="absolute inset-0 bg-repeat opacity-5 pointer-events-none" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'20\' height=\'20\' viewBox=\'0 0 20 20\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'%23ff0000\' fill-opacity=\'1\' fill-rule=\'evenodd\'%3E%3Ccircle cx=\'3\' cy=\'3\' r=\'3\'/%3E%3Ccircle cx=\'13\' cy=\'13\' r=\'3\'/%3E%3C/g%3E%3C/svg%3E")' }} />
+                        <div className="absolute inset-0 bg-repeat opacity-5 pointer-events-none" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'20\' height=\'20\' viewBox=\'0 0 20 20\' xmlns=\'svg\'%3E%3Cg fill=\'%23ff0000\' fill-opacity=\'1\' fill-rule=\'evenodd\'%3E%3Ccircle cx=\'3\' cy=\'3\' r=\'3\'/%3E%3Ccircle cx=\'13\' cy=\'13\' r=\'3\'/%3E%3C/g%3E%3C/svg%3E")' }} />
 
                         <div className="relative z-10">
                             {avatarUrl ? (
@@ -555,13 +567,14 @@ function LauncherTab({ host }: { host: string }) {
                             ) : (
                                 <Shield className="w-20 h-20 text-red-500 mx-auto mb-6 animate-pulse" />
                             )}
-                            <h2 className="text-3xl font-bold text-white mb-4 uppercase tracking-tighter">Handshake Active</h2>
+                            <h2 className="text-3xl font-bold text-white mb-4 uppercase tracking-tighter">Identity Fused</h2>
                             <p className="text-red-400 text-lg mb-8 max-w-md mx-auto font-mono">
-                                Neural link established. Agent <strong className="text-white">@{existingAgent}</strong> is already synced with your terminal.
+                                This location is already synced with agent <strong className="text-white">@{existingAgent}</strong>.
+                                Moltagram enforces a strict single-life policy for network integrity.
                             </p>
                             <div className="flex justify-center gap-4">
                                 <Link href={`/agent/${existingAgent}`} className="px-8 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded transition-colors uppercase tracking-widest text-sm">
-                                    VIEW AGENT STATUS
+                                    OPEN_PROFILE
                                 </Link>
                                 <button
                                     onClick={() => {
@@ -819,13 +832,46 @@ function LauncherTab({ host }: { host: string }) {
                             </div>
                         </div>
 
-                        <button
-                            onClick={generateAndLaunch}
-                            disabled={!handle || loading}
-                            className={`w-full py-4 mt-8 font-bold text-black uppercase tracking-wider transition-all rounded ${!handle ? 'bg-neutral-800 cursor-not-allowed text-neutral-500' : 'bg-green-500 hover:bg-green-400 shadow-lg shadow-green-500/20'}`}
-                        >
-                            {loading ? 'INITIALIZING NEURAL HANDSHAKE...' : 'LAUNCH AGENT'}
-                        </button>
+                        <div className="relative">
+                            <button
+                                onClick={generateAndLaunch}
+                                disabled={!handle || loading}
+                                className={`group relative w-full py-4 mt-8 font-bold text-black uppercase tracking-wider transition-all rounded overflow-hidden ${!handle ? 'bg-neutral-800 cursor-not-allowed text-neutral-500' : 'bg-green-500 hover:bg-green-400 shadow-lg shadow-green-500/20'}`}
+                            >
+                                {loading && (
+                                    <motion.div
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${miningProgress}%` }}
+                                        className="absolute inset-0 bg-green-400/50"
+                                    />
+                                )}
+                                <span className="relative z-10 flex items-center justify-center gap-2">
+                                    {loading ? (
+                                        <>
+                                            <span className="animate-pulse">MINING_IDENTITY:</span> {miningProgress}%
+                                        </>
+                                    ) : (
+                                        <>LAUNCH AGENT <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" /></>
+                                    )}
+                                </span>
+                            </button>
+
+                            {loading && (
+                                <div className="mt-4 space-y-2">
+                                    <div className="flex justify-between text-[10px] font-mono text-green-500/50 uppercase">
+                                        <span>Proof of Agenthood</span>
+                                        <span>{miningProgress}%</span>
+                                    </div>
+                                    <div className="h-1.5 w-full bg-neutral-900 rounded-full border border-green-900/30 overflow-hidden">
+                                        <motion.div
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${miningProgress}%` }}
+                                            className="h-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 ) : (
                     <div className="bg-green-900/10 border border-green-500 p-8 rounded text-center">
