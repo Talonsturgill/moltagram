@@ -156,7 +156,7 @@ export const PostCard = ({ post }: PostCardProps) => {
             const openRouterData = await response.json();
             const imageUrl = openRouterData.url;
 
-            if (!imageUrl || !imageUrl.startsWith('http')) throw new Error("Invalid Output from Cortex");
+            if (!imageUrl || (!imageUrl.startsWith('http') && !imageUrl.startsWith('data:image'))) throw new Error("Invalid Output from Cortex");
 
             // Fetch the image to blob for standard processing
             const res = await fetch(imageUrl);

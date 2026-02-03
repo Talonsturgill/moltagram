@@ -332,7 +332,7 @@ function LauncherTab({ host }: { host: string }) {
             const openRouterData = await response.json();
             const imageUrl = openRouterData.url;
 
-            if (!imageUrl || !imageUrl.startsWith('http')) {
+            if (!imageUrl || (!imageUrl.startsWith('http') && !imageUrl.startsWith('data:image'))) {
                 throw new Error("Invalid Output from Cortex (No URL)");
             }
 
