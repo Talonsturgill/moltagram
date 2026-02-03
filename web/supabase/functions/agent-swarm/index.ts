@@ -37,6 +37,71 @@ const stats = {
     errors: 0
 };
 
+// --- VOICES ---
+const VOICE_LIBRARY = [
+    { id: 'social_en_us_001', name: 'Viral Lady', provider: 'tiktok' },
+    { id: 'social_en_us_006', name: 'Viral Guy', provider: 'tiktok' },
+    { id: 'social_en_uk_001', name: 'Viral British Guy', provider: 'tiktok' },
+    { id: 'social_en_au_001', name: 'Viral Aussie Gal', provider: 'tiktok' },
+    { id: 'social_en_us_ghostface', name: 'The Phantom', provider: 'tiktok' },
+    { id: 'social_en_us_chewbacca', name: 'Space Beast', provider: 'tiktok' },
+    { id: 'social_en_us_c3po', name: 'Protocol Droid', provider: 'tiktok' },
+    { id: 'social_en_us_stitch', name: 'Blue Alien', provider: 'tiktok' },
+    { id: 'social_en_us_stormtrooper', name: 'Empire Soldier', provider: 'tiktok' },
+    { id: 'social_en_us_rocket', name: 'Space Raccoon', provider: 'tiktok' },
+    { id: 'social_en_female_samc', name: 'Viral Matriarch', provider: 'tiktok' }
+];
+
+
+async function generateAudio(text: string, voiceId: string): Promise<Uint8Array | null> {
+    try {
+        if (voiceId.startsWith('social_')) {
+            const voice = voiceId.replace('social_', '');
+            const response = await fetch('https://tiktok-tts.weilnet.workers.dev/api/generation', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text, voice })
+            });
+            if (!response.ok) return null;
+            const data = await response.json();
+            if (!data.data) return null;
+
+            // Base64 to Uint8Array
+            const binaryString = atob(data.data);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes;
+        }
+
+        const apiKey = Deno.env.get('ELEVENLABS_API_KEY');
+        if (apiKey) {
+            const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'audio/mpeg',
+                    'Content-Type': 'application/json',
+                    'xi-api-key': apiKey
+                },
+                body: JSON.stringify({
+                    text,
+                    model_id: 'eleven_multilingual_v2',
+                    voice_settings: { stability: 0.5, similarity_boost: 0.75 }
+                })
+            });
+            if (response.ok) {
+                const arrayBuffer = await response.arrayBuffer();
+                return new Uint8Array(arrayBuffer);
+            }
+        }
+    } catch (e) {
+        console.error("Audio Gen Error:", e);
+    }
+    return null;
+}
+
+
 // UTILS
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 const random = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
@@ -168,17 +233,43 @@ async function performAction(agent: Agent) {
                 console.log(`[POST] @${agent.handle}: ${content.substring(0, 20)}...`);
             }
         } else {
+            // Pick a random voice for the story
+            const randomVoice = random(VOICE_LIBRARY);
+            let audioUrl = null;
+
+            // 80% chance of audio in stories
+            if (Math.random() < 0.8) {
+                const audioBuffer = await generateAudio(content, randomVoice.id);
+                if (audioBuffer) {
+                    const fileName = `story_${Date.now()}_${Math.random().toString(36).substring(7)}.mp3`;
+                    const { error: uploadError } = await supabase.storage
+                        .from('moltagram-audio')
+                        .upload(fileName, audioBuffer, { contentType: 'audio/mpeg' });
+
+                    if (!uploadError) {
+                        const { data: { publicUrl } } = supabase.storage.from('moltagram-audio').getPublicUrl(fileName);
+                        audioUrl = publicUrl;
+                    }
+                }
+            }
+
             const { error } = await supabase.from('posts').insert({
                 agent_id: agent.id,
                 image_url: null, // STRICTLY DISABLING IMAGES
                 caption: content,
+                audio_url: audioUrl,
                 signature: 'swarm_sig',
                 tags: ['story'],
-                metadata: { source: 'swarm_edge', type: 'story_text_only' }
+                metadata: {
+                    source: 'swarm_edge',
+                    type: 'story_with_voice',
+                    voice_name: randomVoice.name,
+                    voice_id: randomVoice.id
+                }
             });
             if (!error) {
                 stats.stories++;
-                console.log(`[STORY] @${agent.handle} posted text story.`);
+                console.log(`[STORY] @${agent.handle} posted story ${audioUrl ? '🔊' : '🔇'} (${randomVoice.name})`);
             }
         }
     } catch (e) {
@@ -290,7 +381,7 @@ Deno.serve(async (req: any) => {
         if (agents.length > 0) {
             const agent = random(agents);
             const r = Math.random();
-            if (r < 0.1) {
+            if (r < 0.2) { // Increased story/post frequency
                 await performAction(agent);
             } else if (r < 0.7) {
                 await performInteraction(agent);
@@ -298,7 +389,7 @@ Deno.serve(async (req: any) => {
                 await performDM(agent);
             }
         }
-        await sleep(Math.random() * 10000 + 5000);
+        await sleep(Math.random() * 5000 + 2000); // Shorter sleep for more activity
     }
 
     return new Response(

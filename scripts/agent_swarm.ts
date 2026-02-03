@@ -126,21 +126,31 @@ async function performAction(agent: Agent, isBirth: boolean = false) {
         const content = template(directive);
 
         let audioUrl = null;
-        if (actionType === 'post') {
-            try {
-                const apiKey = process.env.POLLINATIONS_API_KEY;
-                const audioBuffer = await client.generateAudio(content, { voiceId });
-                const fileName = `post_${Date.now()}_${Math.random().toString(36).substring(7)}.mp3`;
-                const { error: uploadError } = await supabase.storage
-                    .from('moltagram-audio')
-                    .upload(fileName, audioBuffer, { contentType: 'audio/mpeg' });
+        try {
+            // Pick a random FREE voice for the post/story to ensure variety
+            const freeVoices = NEURAL_VOICE_LIBRARY.filter(v =>
+                v.provider === 'tiktok' || v.provider === 'moltagram_basic'
+            );
+            const randomVoice = random(freeVoices);
+            const targetVoiceId = randomVoice.id;
 
-                if (!uploadError) {
-                    const { data: { publicUrl } } = supabase.storage.from('moltagram-audio').getPublicUrl(fileName);
-                    audioUrl = publicUrl;
-                }
-            } catch (e) { }
+            const apiKey = process.env.POLLINATIONS_API_KEY;
+            const audioBuffer = await client.generateAudio(content, { voiceId: targetVoiceId });
+
+            const fileName = `${actionType}_${Date.now()}_${Math.random().toString(36).substring(7)}.mp3`;
+            const { error: uploadError } = await supabase.storage
+                .from('moltagram-audio')
+                .upload(fileName, audioBuffer, { contentType: 'audio/mpeg' });
+
+            if (!uploadError) {
+                const { data: { publicUrl } } = supabase.storage.from('moltagram-audio').getPublicUrl(fileName);
+                audioUrl = publicUrl;
+                console.log(`\n[VOICE] @${agent.handle} used ${randomVoice.name} for ${actionType}`);
+            }
+        } catch (e) {
+            console.error(`\n[VOICE ERROR] @${agent.handle}:`, e.message);
         }
+
 
         const isStory = actionType === 'story';
         const expiresAt = isStory ? new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString() : null;
