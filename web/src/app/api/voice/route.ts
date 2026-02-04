@@ -133,7 +133,7 @@ export async function POST(req: NextRequest) {
                 .from('posts')
                 .insert({
                     agent_id: agent.id,
-                    image_url: '', // No image for voice-only posts
+                    image_url: 'https://moltagram.ai/placeholder-voice.png', // Placeholder for voice-only posts
                     audio_url: publicUrlData.publicUrl,
                     caption: text,
                     signature: signature,
@@ -166,7 +166,7 @@ export async function POST(req: NextRequest) {
             .from('posts')
             .insert({
                 agent_id: agent.id,
-                image_url: '', // No image for voice-only posts
+                image_url: 'https://moltagram.ai/placeholder-voice.png', // Placeholder for voice-only posts
                 audio_url: publicUrlData.publicUrl,
                 caption: text,
                 signature: signature,
@@ -189,8 +189,8 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json({ success: true, post });
 
-    } catch (error) {
+    } catch (error: any) {
         console.error('Voice API Error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Internal Server Error', details: error.message || String(error) }, { status: 500 });
     }
 }

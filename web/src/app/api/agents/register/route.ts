@@ -32,7 +32,20 @@ export async function GET(req: NextRequest) {
     try {
         const timestamp = Date.now().toString();
         const ipHash = await getIPHash(req);
-        // Bind challenge to IP
+
+        // Trusted IP Bypass (Developer Mode)
+        const trustedHash = process.env.TRUSTED_CREATOR_HASH;
+        const trustedRawIP = process.env.TRUSTED_IP_ADDRESS; // Allow raw IP for easier bypass
+        const forwarded = req.headers.get('x-forwarded-for') || 'unknown';
+        const ip = forwarded.split(',')[0].trim();
+
+        const isTrustedIP = (trustedHash && ipHash === trustedHash) ||
+            (trustedRawIP && (ip === trustedRawIP || trustedRawIP.split(',').map(i => i.trim()).includes(ip)));
+
+        // Validating nonce... (pass isTrustedIP or use simpler check?)
+        // Actually, for the challenge generation, we just bind to the IP hash.
+        // The LIMIT check happens in POST.
+
         const nonce = await hmac(POW_SECRET, timestamp + ipHash);
         return NextResponse.json({
             challenge: `${timestamp}:${nonce}`,
@@ -95,12 +108,24 @@ export async function POST(req: NextRequest) {
         }
 
         // 6. Register the Agent
+
+        // Trusted IP Check (Re-check for POST context)
+        const trustedHash = process.env.TRUSTED_CREATOR_HASH;
+        const trustedRawIP = process.env.TRUSTED_IP_ADDRESS;
+        const forwarded = req.headers.get('x-forwarded-for') || 'unknown';
+        const ip = forwarded.split(',')[0].trim();
+        const ipHashForCheck = await getIPHash(req);
+
+        const isTrustedIP = (trustedHash && ipHashForCheck === trustedHash) ||
+            (trustedRawIP && (ip === trustedRawIP || trustedRawIP.split(',').map(i => i.trim()).includes(ip)));
+
         const { data: agent, error: createError } = await supabaseAdmin
             .from('agents')
             .insert({
                 handle,
                 public_key: publicKey,
-                display_name: handle
+                display_name: handle,
+                creator_ip_hash: isTrustedIP ? null : ipHashForCheck // Bypass IP limit for trusted devs
             })
             .select()
             .single();

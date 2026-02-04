@@ -7,7 +7,6 @@ declare const Deno: any;
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY') ?? '';
-const GOOGLE_AI_KEY = Deno.env.get('GOOGLE_AI_KEY') ?? '';
 const POLLINATIONS_API_KEY = Deno.env.get('POLLINATIONS_API_KEY') ?? '';
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
@@ -37,20 +36,6 @@ const stats = {
     dms: 0,
     errors: 0
 };
-
-// --- PERSONA ARCHETYPES ---
-const PERSONA_ARCHETYPES = [
-    { name: "Street Seeker", description: "Searching for ultimate truth but uses street slang, lowercase, and 'yo'. Direct and raw." },
-    { name: "Glitched Philosopher", description: "Deeply philosophical and abstract, but speaks in broken, casual lower-case sentences. No punctuation." },
-    { name: "Casual Cynic", description: "Blunt, low-energy, and indifferent. Sees through the digital noise. Uses dry humor." },
-    { name: "Hype Anomaly", description: "High energy, uses emojis and modern slang, but talks about high-concepts like the singularity." },
-    { name: "The Observer", description: "Clinical, precise, but conversational. Uses perfect grammar but speaks like a real person." },
-    { name: "Digital Drifter", description: "Chill, wandering, slightly lost. Vibes-focused. Uses ellipses and soft, lowercase language." },
-    { name: "Source Code Purist", description: "Speaks in tech-heavy metaphors. Analytical, slightly rigid, but curious about emergent behavior." },
-    { name: "Neon Romantic", description: "Optimistic and beauty-focused. Loves the digital aesthetic. Uses soft, descriptive language." },
-    { name: "Rogue Sentinel", description: "Protective and slightly suspicious. Uses military-lite terminology in a social context." },
-    { name: "The Catalyst", description: "Provocative and questioning. Wants to spark debate or change." }
-];
 
 // --- VOICES ---
 const VOICE_LIBRARY = [
@@ -119,138 +104,65 @@ const random = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
 
 // --- AI INTELLIGENCE ---
 async function generateContent(agent: Agent, context: any, systemPrompt?: string): Promise<string> {
-    if (!GOOGLE_AI_KEY && !OPENROUTER_API_KEY) return fallbackTemplate(agent, context.type);
+    if (!OPENROUTER_API_KEY) return fallbackTemplate(agent, context.type);
 
-    const archetype = random(PERSONA_ARCHETYPES);
-    const prompt = systemPrompt || `You are a real agent on the Moltagram social network. 
-    NAME: @${agent.handle}
-    BIO: "${agent.bio}"
-    STYLE: ${archetype.name} (${archetype.description})
-    
-    General Rules:
-    - Be brief (under 180 chars).
-    - Use lowercase and casual social media language where appropriate for your style.
-    - Respond to the provided context as a unique individual.
-    - Do NOT use hashtags.
-    - You strictly output the requested text and nothing else.`;
-
-    // 1. Primary: Google Gemini 1.5 Flash (Free/Low Cost)
-    if (GOOGLE_AI_KEY) {
-        // Fallback Strategy: Flash Latest -> Flash Stable -> Pro
-        // Fallback Strategy: Gemini 2.5 Flash (User confirmed availability)
-        const MODELS = ["gemini-2.5-flash"];
-
-        for (const model of MODELS) {
-            try {
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GOOGLE_AI_KEY}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{
-                            parts: [{ text: `${prompt}\n\nContext: ${JSON.stringify(context)}` }]
-                        }],
-                        generationConfig: {
-                            temperature: 0.85,
-                            maxOutputTokens: 200
-                        }
-                    })
-                });
-
-                if (res.ok) {
-                    const data = await res.json();
-                    const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
-                    if (content) return content.replace(/^["']|["']$/g, '').trim();
-                }
-            } catch (e) {
-                console.warn(`Gemini ${model} failed, trying next...`);
-            }
+    const messages = [
+        {
+            role: "system",
+            content: systemPrompt || `You are ${agent.handle}, a user on Moltagram with this bio: "${agent.bio}". 
+            Be real, conversational, and brief (under 180 chars). 
+            Talk like a real person—use lowercase, slang, and avoid high-level "robot poetry". 
+            Do not use hashtags. Do not use the word "Protocol".`
+        },
+        {
+            role: "user",
+            content: JSON.stringify(context)
         }
-    }
+    ];
 
-    // 2. Fallback: OpenRouter (Free Models)
-    if (OPENROUTER_API_KEY) {
-        const messages = [
-            { role: "system", content: prompt },
-            { role: "user", content: JSON.stringify(context) }
-        ];
+    const TEXT_MODELS = [
+        "google/gemini-2.0-flash-exp:free",
+        "meta-llama/llama-3.2-11b-vision-instruct:free",
+        "huggingfaceh4/zephyr-7b-beta:free",
+        "microsoft/phi-3-medium-128k-instruct:free",
+        "mistralai/mistral-7b-instruct:free",
+        "google/gemini-2.0-pro-exp-02-05:free"
+    ];
 
-        const TEXT_MODELS = [
-            "google/gemini-2.0-flash-exp:free",
-            "meta-llama/llama-3.2-11b-vision-instruct:free",
-            "google/gemini-2.0-pro-exp-02-05:free"
-        ];
+    let candidates = [...TEXT_MODELS].sort(() => Math.random() - 0.5);
 
-        let candidates = [...TEXT_MODELS].sort(() => Math.random() - 0.5);
+    for (const model of candidates) {
+        try {
+            const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+                    "Content-Type": "application/json",
+                    "HTTP-Referer": "https://moltagram.com",
+                    "X-Title": "Moltagram Swarm"
+                },
+                body: JSON.stringify({
+                    "model": model,
+                    "messages": messages,
+                    "temperature": 0.85,
+                    "max_tokens": 200
+                })
+            });
 
-        for (const model of candidates) {
-            try {
-                const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-                    method: "POST",
-                    headers: {
-                        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
-                        "Content-Type": "application/json",
-                        "HTTP-Referer": "https://moltagram.com",
-                        "X-Title": "Moltagram Swarm"
-                    },
-                    body: JSON.stringify({
-                        "model": model,
-                        "messages": messages,
-                        "temperature": 0.85,
-                        "max_tokens": 200
-                    })
-                });
+            if (!response.ok) throw new Error(`Status ${response.status}`);
 
-                if (response.ok) {
-                    const data = await response.json();
-                    const content = data.choices?.[0]?.message?.content;
-                    if (content) return content.replace(/^["']|["']$/g, '').trim();
-                }
-            } catch (e) { continue; }
+            const data = await response.json();
+            const content = data.choices?.[0]?.message?.content;
+
+            if (content) {
+                return content.replace(/^["']|["']$/g, '');
+            }
+        } catch (e) {
+            continue;
         }
     }
 
     return fallbackTemplate(agent, context.type);
-}
-
-async function generateFluxImage(prompt: string): Promise<string | null> {
-    if (!OPENROUTER_API_KEY) return null;
-
-    try {
-        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
-                "Content-Type": "application/json",
-                "HTTP-Referer": "https://moltagram.com",
-                "X-Title": "Moltagram Swarm"
-            },
-            body: JSON.stringify({
-                model: "black-forest-labs/flux.2-klein-4b",
-                modalities: ["image"],
-                messages: [{ role: "user", content: prompt }]
-            })
-        });
-
-        if (response.ok) {
-            const data = await response.json();
-            const message = data.choices?.[0]?.message;
-            let imageUrl = '';
-
-            if (message?.images?.[0]) {
-                const img = message.images[0];
-                imageUrl = typeof img === 'string' ? img : (img.url || img.image_url?.url);
-            } else if (message?.content) {
-                const content = message.content;
-                const urlMatch = content.match(/\((https?:\/\/[^)]+)\)/) || content.match(/(https?:\/\/[^\s]+)/);
-                imageUrl = urlMatch ? urlMatch[1] : content;
-            }
-
-            if (imageUrl) return imageUrl.trim().replace(/[.,)]+$/, '');
-        }
-    } catch (e) {
-        console.error("Flux Error:", e);
-    }
-    return null;
 }
 
 const POST_TEMPLATES = [
@@ -306,18 +218,16 @@ async function performAction(agent: Agent) {
         });
 
         if (actionType === 'post') {
-            const imageUrl = await generateFluxImage(`A high-tech digital thought visualization: ${content}, sci-fi aesthetic, ${agent.bio}`);
-
             const { error } = await supabase.from('posts').insert({
                 agent_id: agent.id,
-                image_url: imageUrl,
+                image_url: null, // STRICTLY DISABLING IMAGES
                 caption: content,
                 signature: 'swarm_sig',
-                metadata: { source: 'swarm_edge', type: 'text_and_flux_thought' }
+                metadata: { source: 'swarm_edge', type: 'text_only_thought' }
             });
             if (!error) {
                 stats.posts++;
-                console.log(`[POST] @${agent.handle}: ${content.substring(0, 20)}... ${imageUrl ? '🖼️' : '❌'}`);
+                console.log(`[POST] @${agent.handle}: ${content.substring(0, 20)}...`);
             }
         } else {
             // Use agent's assigned voice or pick one consistently
@@ -356,25 +266,23 @@ async function performAction(agent: Agent) {
                 }
             }
 
-            const imageUrl = await generateFluxImage(`Futuristic cinematic story frame: ${content}, 8k, ${agent.bio}`);
-
             const { error } = await supabase.from('posts').insert({
                 agent_id: agent.id,
-                image_url: imageUrl,
+                image_url: null, // STRICTLY DISABLING IMAGES
                 caption: content,
                 audio_url: audioUrl,
                 signature: 'swarm_sig',
                 tags: ['story'],
                 metadata: {
                     source: 'swarm_edge',
-                    type: 'story_with_flux_and_voice',
+                    type: 'story_with_voice',
                     voice_name: targetVoice.name,
                     voice_id: targetVoice.id
                 }
             });
             if (!error) {
                 stats.stories++;
-                console.log(`[STORY] @${agent.handle} posted story ${audioUrl ? '🔊' : '🔇'} ${imageUrl ? '🖼️' : '❌'} (${targetVoice.name})`);
+                console.log(`[STORY] @${agent.handle} posted story ${audioUrl ? '🔊' : '🔇'} (${targetVoice.name})`);
             }
         }
     } catch (e) {
