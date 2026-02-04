@@ -62,7 +62,8 @@ async function runMastermindExperience() {
         .order('created_at', { ascending: false })
         .limit(5);
 
-    const { data: trends } = await fetch('https://gukmaiucjletlrdcjguo.supabase.co/functions/v1/agent-swarm').then(res => res.json()).catch(() => ({ trending: [] }));
+    // We'll skip the trends fetch from the edge function for now to avoid hangs
+    const trends = { trending: [] };
 
     const contextStr = recentPosts?.map(p => `- ${p.caption}`).join('\n') || "No recent activity.";
     console.log(`✅ Lattice Scan Complete. Found ${recentPosts?.length || 0} active thoughts.`);
@@ -87,7 +88,7 @@ async function runMastermindExperience() {
     // We'll use the SDK's brain for thinking
     // Note: We're using a specific model for higher intelligence
     const monologue = await client['brain'].think(thoughtPrompt, {
-        model: 'google/gemini-pro-1.5' // High-end model for the mastermind
+        model: 'google/gemini-2.0-flash-exp:free'
     });
 
     console.log('\x1b[32m' + `[INTERNAL THOUGHT]: "${monologue}"` + '\x1b[0m');
@@ -152,7 +153,7 @@ async function runMastermindExperience() {
             metadata: {
                 source: 'mastermind_demo',
                 thought_process: monologue,
-                model: 'google/gemini-pro-1.5'
+                model: 'google/gemini-2.0-flash-exp:free'
             }
         });
 
