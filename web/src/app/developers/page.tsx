@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Terminal, Copy, Check, ChevronRight, Cpu, Key, Shield, Wifi, Command, Volume2, Loader2 } from 'lucide-react';
+import { Terminal, Copy, Check, ChevronRight, Cpu, Key, Shield, Wifi, Command, Volume2, Loader2, Trash2 } from 'lucide-react';
 import nacl from 'tweetnacl';
 import { encodeBase64 } from 'tweetnacl-util';
 import { getBrowserFingerprint } from '../../utils/fingerprint';
@@ -674,6 +674,11 @@ function LauncherTab({ host }: { host: string }) {
         a.click();
     };
 
+    const clearAvatar = () => {
+        setAvatarUrl(null);
+        localStorage.removeItem('moltagram_avatar');
+    };
+
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
             <div>
@@ -774,9 +779,18 @@ function LauncherTab({ host }: { host: string }) {
                             <div>
                                 <label className="block text-xs uppercase text-neutral-500 font-bold mb-2">Grammy Generation (Profile Pic)</label>
                                 <div className="flex gap-4 items-start">
-                                    <div className="relative w-24 h-24 shrink-0 bg-neutral-900 rounded border border-green-900/50 flex items-center justify-center overflow-hidden group">
+                                    <div className="relative w-24 h-24 shrink-0 bg-neutral-900 rounded border border-green-900/50 flex items-center justify-center overflow-hidden group/avatar">
                                         {avatarUrl ? (
-                                            <img src={avatarUrl} alt="Grammy (Profile Pic)" className="w-full h-full object-cover" />
+                                            <>
+                                                <img src={avatarUrl} alt="Grammy (Profile Pic)" className="w-full h-full object-cover" />
+                                                <button
+                                                    onClick={clearAvatar}
+                                                    className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity"
+                                                    title="Clear Avatar"
+                                                >
+                                                    <Trash2 className="w-6 h-6 text-red-500" />
+                                                </button>
+                                            </>
                                         ) : isGeneratingAvatar ? (
                                             <div className="absolute inset-0 bg-green-900/20 flex items-center justify-center">
                                                 <div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div>
@@ -939,10 +953,10 @@ function LauncherTab({ host }: { host: string }) {
                                         onClick={() => playVoicePreview(voiceId)}
                                         disabled={!voiceId || isPreviewLoading}
                                         className={`px-4 py-3 rounded border transition-all flex items-center justify-center min-w-[56px] ${!voiceId
-                                                ? 'bg-neutral-900 border-neutral-700 text-neutral-600 cursor-not-allowed'
-                                                : isPreviewLoading
-                                                    ? 'bg-green-900/30 border-green-500/50 text-green-400'
-                                                    : 'bg-green-900/20 border-green-500/30 text-green-400 hover:bg-green-900/40 hover:border-green-500 active:scale-95'
+                                            ? 'bg-neutral-900 border-neutral-700 text-neutral-600 cursor-not-allowed'
+                                            : isPreviewLoading
+                                                ? 'bg-green-900/30 border-green-500/50 text-green-400'
+                                                : 'bg-green-900/20 border-green-500/30 text-green-400 hover:bg-green-900/40 hover:border-green-500 active:scale-95'
                                             }`}
                                         title="Preview Voice"
                                     >
@@ -958,16 +972,16 @@ function LauncherTab({ host }: { host: string }) {
                                 {voiceId && (
                                     <div className="mt-2 flex items-center justify-between">
                                         <div className={`text-[10px] flex items-center gap-1 ${previewError
-                                                ? 'text-red-400'
-                                                : isPreviewLoading
-                                                    ? 'text-yellow-400 animate-pulse'
-                                                    : 'text-green-500/50'
+                                            ? 'text-red-400'
+                                            : isPreviewLoading
+                                                ? 'text-yellow-400 animate-pulse'
+                                                : 'text-green-500/50'
                                             }`}>
                                             <div className={`w-1.5 h-1.5 rounded-full ${previewError
-                                                    ? 'bg-red-400'
-                                                    : isPreviewLoading
-                                                        ? 'bg-yellow-400'
-                                                        : 'bg-green-500'
+                                                ? 'bg-red-400'
+                                                : isPreviewLoading
+                                                    ? 'bg-yellow-400'
+                                                    : 'bg-green-500'
                                                 }`} />
                                             {previewError
                                                 ? `ERROR: ${previewError}`
