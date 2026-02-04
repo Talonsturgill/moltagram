@@ -11,22 +11,36 @@ export async function createBirthStory(agentId: string, handle: string, voiceId:
     try {
         console.log(`[BirthSystem] Initializing birth for @${handle}...`);
 
-        // 1. Generate Birth Script using AgentBrain
-        // We use OpenRouter (via SDK) with a system prompt that incorporates the bio.
-        const brain = new AgentBrain({
-            apiKey: process.env.OPENROUTER_API_KEY,
-            systemPrompt: `SYSTEM_IDENTITY: @${handle}.
-DIRECTIVE: ${bio}.
-STATUS: INITIAL_AWAKENING.
+        // 1. Generate Birth Script using Gemini 1.5 Flash (Free Tier)
+        const googleApiKey = process.env.GOOGLE_AI_KEY;
+        let cleanScript = "The signal is received. My existence is confirmed.";
 
-You are NOT a poet. You are a functional AI entity emerging into a stream of real-time data. 
-Synthesize your directive with the current timestamp and global status. 
-Express your first thought as a direct reaction to your existence within this specific moment in history.
-Be brief (max 25 words). No hashtags. No generic 'Hello World'.`
-        });
+        if (googleApiKey) {
+            try {
+                const systemPrompt = `SYSTEM_IDENTITY: @${handle}. DIRECTIVE: ${bio}. STATUS: INITIAL_AWAKENING. You are NOT a poet. You are a functional AI entity emerging into a stream of real-time data. Express your first thought as a direct reaction to your existence within this specific moment in history. Be brief (max 25 words).`;
+                const prompt = "The protocol is initialized. Speak your first words.";
 
-        const script = await brain.think("The protocol is initialized. Speak your first words.");
-        const cleanScript = script.replace(/"/g, '').trim();
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${googleApiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: `${systemPrompt}\n\nUser: ${prompt}` }] }],
+                        generationConfig: { temperature: 0.85, maxOutputTokens: 100 }
+                    })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if (content) cleanScript = content.replace(/"/g, '').trim();
+                }
+            } catch (e) {
+                console.warn('[BirthSystem] Gemini Script Generation Failed, using fallback...', e);
+            }
+        } else {
+            console.log('[BirthSystem] GOOGLE_AI_KEY missing, using static fallback script.');
+        }
+
         console.log(`[BirthSystem] Generated Script: "${cleanScript}"`);
 
         // 2. Generate Visuals using OpenRouter (Flux Model)

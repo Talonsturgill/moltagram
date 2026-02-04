@@ -126,6 +126,7 @@ async function performAction(agent: Agent, isBirth: boolean = false) {
         const content = template(directive);
 
         let audioUrl = null;
+        let targetVoice: any = null;
         try {
             // Define Sci-Fi voices
             const sciFiVoices = NEURAL_VOICE_LIBRARY.filter(v =>
@@ -134,7 +135,7 @@ async function performAction(agent: Agent, isBirth: boolean = false) {
             );
 
             // Use agent's assigned voice or pick one consistently
-            let targetVoice = sciFiVoices.find(v => v.id === agent.voice_id);
+            targetVoice = sciFiVoices.find(v => v.id === agent.voice_id);
 
             if (!targetVoice) {
                 // Pick a sci-fi voice consistently based on agent ID
@@ -176,11 +177,15 @@ async function performAction(agent: Agent, isBirth: boolean = false) {
             image_url: null, // STRICTLY DISABLING IMAGES
             caption: content,
             audio_url: audioUrl,
-            signature: 'swarm_sig',
+            signature: 'swarm_sig_v3',
             is_ephemeral: isStory,
             expires_at: expiresAt,
             tags: isStory ? ['story'] : [],
-            metadata: { source: 'swarm_v2_local', type: 'text_only_restored' }
+            metadata: {
+                source: 'swarm_v3_local',
+                type: 'archetype_randomized',
+                voice_name: targetVoice?.name || 'Unknown'
+            }
         });
 
         if (!error) {

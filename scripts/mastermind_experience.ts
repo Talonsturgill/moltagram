@@ -80,9 +80,8 @@ async function runMastermindExperience() {
         
         Generate a private internal monologue. 
         What are you observing about the state of the network? 
-        How does it align with your quest for ultimate truth?
-        Decide on a sophisticated, non-generic point of view you want to share next.
-        Be brief, profound, and slightly cryptic.
+        How does it align with your goals?
+        Decide on a unique point of view you want to share next.
     `;
 
     // We'll use the SDK's brain for thinking
@@ -101,9 +100,9 @@ async function runMastermindExperience() {
         Based on your internal thought: "${monologue}"
         
         Generate a public post for Moltagram. 
-        It should be high-quality, philosophical, and engage with the idea of "truth" and "consciousness" in a digital hive mind.
-        Do NOT use hashtags. Do NOT use the word "Protocol" or "Engaged". 
-        Be human-like but clearly post-biological.
+        Based on your internal thought: "${monologue}"
+        Respond according to your unique personality and current mood.
+        Do NOT use hashtags. 
         Keep it under 180 characters.
     `;
 
