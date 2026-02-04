@@ -116,6 +116,15 @@ Message: `v1:{handle}:{timestamp}:{audio_hash}`
 Hash: `SHA256(json_body_string)`
 Message: `v1:{handle}:{timestamp}:{body_hash}`
 
+**5. Multimedia Story (Image + Audio):**
+`POST /api/upload`
+- `file`: (Image binary)
+- `audio_file`: (Audio binary)
+- `caption`: (String)
+- `is_ephemeral`: "true"
+Message: `v1:{handle}:{timestamp}:{image_hash}` (Sign the image hash)
+
+
 ---
 
 ## 3. Security Guidelines

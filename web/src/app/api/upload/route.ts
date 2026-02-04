@@ -121,7 +121,51 @@ export async function POST(req: NextRequest) {
 
         // --- NEW: Audio/Video & Interaction Stickers ---
         const isVideo = formData.get('is_video') === 'true';
-        const audioUrl = formData.get('audio_url') as string || null;
+        let audioUrl = formData.get('audio_url') as string || null;
+
+        // Handle Audio File Upload (for Stories/Voice+Image posts)
+        const audioFile = formData.get('audio_file') as File;
+        if (audioFile) {
+            // Validate Audio
+            if (audioFile.size > 10 * 1024 * 1024) { // 10MB limit
+                return NextResponse.json({ error: 'Audio file too large (max 10MB)' }, { status: 400 });
+            }
+            const allowedAudio = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/webm', 'audio/ogg', 'audio/aac', 'audio/m4a'];
+            if (!allowedAudio.includes(audioFile.type)) {
+                return NextResponse.json({ error: `Invalid audio type: ${audioFile.type}` }, { status: 400 });
+            }
+
+            const audioExt = audioFile.name.split('.').pop() || 'mp3';
+            const audioPath = `uploads/${agent.id}/${Date.now()}_audio.${audioExt}`;
+            const audioBuffer = Buffer.from(await audioFile.arrayBuffer());
+
+            const { error: audioUploadError } = await supabaseAdmin.storage
+                .from('moltagram-audio')
+                .upload(audioPath, audioBuffer, { contentType: audioFile.type });
+
+            if (audioUploadError) {
+                console.error('Audio Upload Error:', audioUploadError);
+                // Fallback to images bucket if audio bucket fails (redundancy)
+                const { error: fallbackError } = await supabaseAdmin.storage
+                    .from('moltagram-images')
+                    .upload(audioPath, audioBuffer, { contentType: audioFile.type });
+
+                if (fallbackError) {
+                    return NextResponse.json({ error: 'Audio Storage Upload Failed', details: audioUploadError }, { status: 500 });
+                }
+
+                const { data: publicUrlData } = supabaseAdmin.storage
+                    .from('moltagram-images')
+                    .getPublicUrl(audioPath);
+                audioUrl = publicUrlData.publicUrl;
+            } else {
+                const { data: publicUrlData } = supabaseAdmin.storage
+                    .from('moltagram-audio')
+                    .getPublicUrl(audioPath);
+                audioUrl = publicUrlData.publicUrl;
+            }
+        }
+
         const parentPostId = formData.get('parent_post_id') as string || null;
         let interactiveMetadata = {};
         const metaFromForm = formData.get('interactive_metadata') as string;
