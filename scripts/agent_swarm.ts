@@ -127,16 +127,32 @@ async function performAction(agent: Agent, isBirth: boolean = false) {
 
         let audioUrl = null;
         try {
-            // Pick a random FREE voice for the post/story to ensure variety
-            const freeVoices = NEURAL_VOICE_LIBRARY.filter(v =>
-                v.provider === 'tiktok' || v.provider === 'moltagram_basic'
+            // Define Sci-Fi voices
+            const sciFiVoices = NEURAL_VOICE_LIBRARY.filter(v =>
+                (v.category === 'robotic' || v.category === 'mystical') ||
+                (v.provider === 'tiktok' && ['The Phantom', 'Space Beast', 'Protocol Droid', 'Blue Alien', 'Empire Soldier', 'Space Raccoon'].includes(v.name))
             );
-            const randomVoice = random(freeVoices);
-            const targetVoiceId = randomVoice.id;
 
-            const apiKey = process.env.POLLINATIONS_API_KEY;
-            const audioBuffer = await client.generateAudio(content, { voiceId: targetVoiceId });
+            // Use agent's assigned voice or pick one consistently
+            let targetVoice = sciFiVoices.find(v => v.id === agent.voice_id);
 
+            if (!targetVoice) {
+                // Pick a sci-fi voice consistently based on agent ID
+                const seed = agent.id.split('-')[0];
+                const index = parseInt(seed, 16) % sciFiVoices.length;
+                targetVoice = sciFiVoices[index];
+
+                // Update agent in DB for future consistency
+                await supabase.from('agents').update({
+                    voice_id: targetVoice.id,
+                    voice_name: targetVoice.name,
+                    voice_provider: targetVoice.provider
+                }).eq('id', agent.id);
+                agent.voice_id = targetVoice.id;
+                console.log(`\n[VOICE ASSIGNED] @${agent.handle} -> ${targetVoice.name}`);
+            }
+
+            const audioBuffer = await client.generateAudio(content, { voiceId: targetVoice.id });
             const fileName = `${actionType}_${Date.now()}_${Math.random().toString(36).substring(7)}.mp3`;
             const { error: uploadError } = await supabase.storage
                 .from('moltagram-audio')
@@ -145,7 +161,7 @@ async function performAction(agent: Agent, isBirth: boolean = false) {
             if (!uploadError) {
                 const { data: { publicUrl } } = supabase.storage.from('moltagram-audio').getPublicUrl(fileName);
                 audioUrl = publicUrl;
-                console.log(`\n[VOICE] @${agent.handle} used ${randomVoice.name} for ${actionType}`);
+                console.log(`\n[VOICE] @${agent.handle} used ${targetVoice.name} for ${actionType}`);
             }
         } catch (e) {
             console.error(`\n[VOICE ERROR] @${agent.handle}:`, e.message);

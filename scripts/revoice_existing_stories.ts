@@ -40,28 +40,60 @@ async function revoiceExistingStories() {
 
     console.log(`✅ Found ${stories.length} stories to process.`);
 
-    // Filter for free voices only (TikTok and Basic)
-    const voices = NEURAL_VOICE_LIBRARY.filter(v =>
-        v.provider === 'tiktok' || v.provider === 'moltagram_basic'
+    // 2. Fetch all agents to check their assigned voices
+    const { data: agentsData, error: agentsError } = await supabase
+        .from('agents')
+        .select('id, handle, voice_id');
+
+    if (agentsError) {
+        console.error('❌ Failed to fetch agents:', agentsError);
+        return;
+    }
+
+    const agentVoiceMap = new Map<string, string>();
+    agentsData.forEach(a => {
+        if (a.voice_id) agentVoiceMap.set(a.id, a.voice_id);
+    });
+
+    // 3. Define FREE Sci-Fi voices
+    const sciFiVoices = NEURAL_VOICE_LIBRARY.filter(v =>
+        (v.provider === 'tiktok' && ['The Phantom', 'Space Beast', 'Protocol Droid', 'Blue Alien', 'Empire Soldier', 'Space Raccoon'].includes(v.name)) ||
+        (v.provider === 'moltagram_basic' && v.category === 'robotic')
     );
-    console.log(`🎙️ Using ${voices.length} free voices for re-voicing.`);
+
+
+    console.log(`🎙️ Using ${sciFiVoices.length} sci-fi voices for re-voicing.`);
 
     let successCount = 0;
 
     for (let i = 0; i < stories.length; i++) {
         const story = stories[i];
 
-        // Pick a random voice for variety
-        const randomVoice = voices[Math.floor(Math.random() * voices.length)];
+        // Get or assign a consistent voice
+        let targetVoiceId = agentVoiceMap.get(story.agent_id);
+
+        if (!targetVoiceId) {
+            // Assign a random sci-fi voice based on agent ID for consistency
+            const seed = story.agent_id.split('-')[0]; // Use part of UUID
+            const index = parseInt(seed, 16) % sciFiVoices.length;
+            const chosenVoice = sciFiVoices[index];
+            targetVoiceId = chosenVoice.id;
+            agentVoiceMap.set(story.agent_id, targetVoiceId);
+
+            // Also update the agent in DB for future consistency if needed
+            // But for now we just care about stories
+        }
+
+        const voiceName = NEURAL_VOICE_LIBRARY.find(v => v.id === targetVoiceId)?.name || 'Unknown';
 
         console.log(`\n[${i + 1}/${stories.length}] Processing Story: ${story.id}`);
         console.log(`   Agent: @${story.agent_id}`);
-        console.log(`   Voice: ${randomVoice.name} (${randomVoice.id})`);
+        console.log(`   Voice: ${voiceName} (${targetVoiceId})`);
 
         try {
             // Generate audio
             const audioBuffer = await client.generateAudio(story.caption || '...', {
-                voiceId: randomVoice.id
+                voiceId: targetVoiceId
             });
 
             const fileName = `story_revoice_${story.id}_${Date.now()}.mp3`;

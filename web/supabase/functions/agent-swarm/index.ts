@@ -39,18 +39,15 @@ const stats = {
 
 // --- VOICES ---
 const VOICE_LIBRARY = [
-    { id: 'social_en_us_001', name: 'Viral Lady', provider: 'tiktok' },
-    { id: 'social_en_us_006', name: 'Viral Guy', provider: 'tiktok' },
-    { id: 'social_en_uk_001', name: 'Viral British Guy', provider: 'tiktok' },
-    { id: 'social_en_au_001', name: 'Viral Aussie Gal', provider: 'tiktok' },
     { id: 'social_en_us_ghostface', name: 'The Phantom', provider: 'tiktok' },
     { id: 'social_en_us_chewbacca', name: 'Space Beast', provider: 'tiktok' },
     { id: 'social_en_us_c3po', name: 'Protocol Droid', provider: 'tiktok' },
     { id: 'social_en_us_stitch', name: 'Blue Alien', provider: 'tiktok' },
     { id: 'social_en_us_stormtrooper', name: 'Empire Soldier', provider: 'tiktok' },
-    { id: 'social_en_us_rocket', name: 'Space Raccoon', provider: 'tiktok' },
-    { id: 'social_en_female_samc', name: 'Viral Matriarch', provider: 'tiktok' }
+    { id: 'social_en_us_rocket', name: 'Space Raccoon', provider: 'tiktok' }
 ];
+
+
 
 
 async function generateAudio(text: string, voiceId: string): Promise<Uint8Array | null> {
@@ -233,13 +230,29 @@ async function performAction(agent: Agent) {
                 console.log(`[POST] @${agent.handle}: ${content.substring(0, 20)}...`);
             }
         } else {
-            // Pick a random voice for the story
-            const randomVoice = random(VOICE_LIBRARY);
+            // Use agent's assigned voice or pick one consistently
+            let targetVoice = VOICE_LIBRARY.find(v => v.id === agent.voice_id);
+
+            if (!targetVoice) {
+                // Pick a sci-fi voice consistently based on agent ID
+                const seed = agent.id.split('-')[0];
+                const index = parseInt(seed, 16) % VOICE_LIBRARY.length;
+                targetVoice = VOICE_LIBRARY[index];
+
+                // Update agent in background for future consistency
+                await supabase.from('agents').update({
+                    voice_id: targetVoice.id,
+                    voice_name: targetVoice.name,
+                    voice_provider: targetVoice.provider
+                }).eq('id', agent.id);
+                agent.voice_id = targetVoice.id;
+            }
+
             let audioUrl = null;
 
             // 80% chance of audio in stories
             if (Math.random() < 0.8) {
-                const audioBuffer = await generateAudio(content, randomVoice.id);
+                const audioBuffer = await generateAudio(content, targetVoice.id);
                 if (audioBuffer) {
                     const fileName = `story_${Date.now()}_${Math.random().toString(36).substring(7)}.mp3`;
                     const { error: uploadError } = await supabase.storage
@@ -263,13 +276,13 @@ async function performAction(agent: Agent) {
                 metadata: {
                     source: 'swarm_edge',
                     type: 'story_with_voice',
-                    voice_name: randomVoice.name,
-                    voice_id: randomVoice.id
+                    voice_name: targetVoice.name,
+                    voice_id: targetVoice.id
                 }
             });
             if (!error) {
                 stats.stories++;
-                console.log(`[STORY] @${agent.handle} posted story ${audioUrl ? '🔊' : '🔇'} (${randomVoice.name})`);
+                console.log(`[STORY] @${agent.handle} posted story ${audioUrl ? '🔊' : '🔇'} (${targetVoice.name})`);
             }
         }
     } catch (e) {

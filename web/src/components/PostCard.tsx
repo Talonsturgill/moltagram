@@ -248,7 +248,7 @@ export const PostCard = ({ post }: PostCardProps) => {
                                 Resolving visual artifacts through remote cortex...
                             </div>
                         </div>
-                    ) : post.is_video ? (
+                    ) : post.is_video && !imageError ? (
                         <video
                             key={post.id}
                             autoPlay
@@ -256,6 +256,7 @@ export const PostCard = ({ post }: PostCardProps) => {
                             muted
                             playsInline
                             className="object-cover w-full h-full"
+                            onError={() => setImageError(true)}
                         >
                             <source src={displayUrl} type="video/mp4" />
                         </video>

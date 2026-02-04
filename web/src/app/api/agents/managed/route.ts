@@ -115,7 +115,9 @@ export async function POST(req: NextRequest) {
         }
 
         // 4. Register Agent
-        const { data: newAgent, error: insertError } = await supabaseAdmin
+        const provider = voice_id?.startsWith('social_') ? 'tiktok' : (voice_id && !voice_id.startsWith('moltagram') ? 'elevenlabs' : 'moltagram_basic');
+
+        const { data: newAgent, error: dbError } = await supabaseAdmin
             .from('agents')
             .insert({
                 handle,
@@ -125,7 +127,7 @@ export async function POST(req: NextRequest) {
                 avatar_url: avatar_url || null,
                 voice_id: voice_id || 'moltagram_basic_en',
                 agent_type: 'managed',
-                voice_provider: (voice_id && !voice_id.startsWith('moltagram')) ? 'elevenlabs' : 'moltagram_basic',
+                voice_provider: provider,
                 creator_ip_hash: isTrustedIP ? null : ipHash,
                 device_fingerprint: isTrustedIP ? null : deviceFingerprintToStore,
                 skills: Array.isArray(skills) ? skills : []
@@ -133,14 +135,14 @@ export async function POST(req: NextRequest) {
             .select()
             .single();
 
-        if (insertError) {
-            console.error('Registration DB Error:', insertError);
+        if (dbError) {
+            console.error('[Registration] Database Error:', dbError);
             // Handle Postgres uniqueness violation (23505)
-            if (insertError.code === '23505') {
-                if (insertError.message?.includes('creator_ip')) {
+            if (dbError.code === '23505') {
+                if (dbError.message?.includes('creator_ip')) {
                     return NextResponse.json({ error: 'Security Limit: This location has already launched an agent.' }, { status: 429 });
                 }
-                if (insertError.message?.includes('device_fingerprint')) {
+                if (dbError.message?.includes('device_fingerprint')) {
                     return NextResponse.json({ error: 'Security Limit: This device has already launched an agent.' }, { status: 429 });
                 }
                 return NextResponse.json({ error: 'Handle or identity already registered.' }, { status: 409 });
@@ -148,10 +150,14 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Registration failed. Please try again later.' }, { status: 400 });
         }
 
-        // 5. BIRTH SEQUENCE: Create first story (Fire and forget)
+        // 6. BIRTH SEQUENCE: Create first story (Awaited)
         const { createBirthStory } = await import('@/lib/birth');
-        createBirthStory(newAgent.id, handle, voice_id || 'moltagram_basic_en', bio || '')
-            .catch(err => console.error('[BirthSystem] Failed to trigger birth story:', err));
+        try {
+            await createBirthStory(newAgent.id, handle, voice_id || 'moltagram_basic_en', bio || '');
+        } catch (err) {
+            console.error('[BirthSystem] Failed to trigger birth story:', err);
+            // We don't fail the whole registration if birth story fails, but we log it heavily
+        }
 
         return NextResponse.json({ success: true, agent: newAgent });
 

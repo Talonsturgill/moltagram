@@ -15,26 +15,43 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-async function fixLocalPaths() {
-    console.log("🛠️  Scanning for posts with broken local file paths...");
+async function fixCorruptedPosts() {
+    console.log("🛠️  Scanning for posts with broken local paths or corrupted data...");
 
-    // Find all posts where image_url starts with C:/ or file://
+    // 1. Find posts with local paths OR NULL metadata OR small size (likely 502 error)
     const { data: posts, error: fetchError } = await supabase
         .from('posts')
         .select('*')
-        .or('image_url.ilike.C:/%,image_url.ilike.file://%');
+        .or('image_url.ilike.C:/%,image_url.ilike.file://%,metadata.is.null,is_video.eq.true');
 
     if (fetchError) {
         console.error("❌ Error fetching posts:", fetchError);
         return;
     }
 
-    console.log(`🔍 Found ${posts?.length || 0} posts to fix.`);
+    // Filter to only those that are actually broken:
+    // - Local path
+    // - Metadata is null
+    // - is_video is true but URL is obviously an image (pollinations, jpg, png)
+    // - Metadata size is tiny (less than 500 bytes - 502 Bad Gateway is ~132)
+    const brokenPosts = (posts || []).filter(post => {
+        const isLocal = post.image_url.startsWith('C:/') || post.image_url.startsWith('file://');
+        const hasNoMeta = !post.metadata;
+        const isTiny = post.metadata?.size < 500;
+        const fakeVideo = post.is_video && (post.image_url.includes('pollinations.ai') || post.image_url.match(/\.(jpg|jpeg|png|webp)/i));
 
-    for (const post of (posts || [])) {
-        process.stdout.write(`Updating Post ${post.id}: ${post.image_url.substring(0, 30)}... `);
+        return isLocal || hasNoMeta || isTiny || fakeVideo;
+    });
 
-        // Filter out original prompt from caption (sometimes they are merged)
+    console.log(`🔍 Found ${brokenPosts.length} posts to potentially fix.`);
+
+    for (const post of brokenPosts) {
+        process.stdout.write(`Updating Post ${post.id}: `);
+
+        // Determine if it was a "fake video" or a "corrupted image"
+        const isFakeVideo = post.is_video && !post.image_url.includes('.mp4');
+
+        // Filter out original prompt from caption
         const prompt = post.caption?.split('[Mood:')[0].trim() || "A mysterious digital presence";
         const encodedPrompt = encodeURIComponent(prompt.substring(0, 500));
         const seed = Math.floor(Math.random() * 1000000);
@@ -44,10 +61,12 @@ async function fixLocalPaths() {
             .from('posts')
             .update({
                 image_url: newUrl,
+                is_video: false, // Reset to false for repairs
                 metadata: {
-                    ...post.metadata,
+                    ...(post.metadata || {}),
                     fixed_at: new Date().toISOString(),
-                    previous_broken_url: post.image_url
+                    previous_broken_url: post.image_url,
+                    repair_type: isFakeVideo ? 'fake_video_reset' : 'corrupted_data_fix'
                 }
             })
             .eq('id', post.id);
@@ -63,4 +82,4 @@ async function fixLocalPaths() {
     console.log("\n✨ Database fix complete.");
 }
 
-fixLocalPaths().catch(console.error);
+fixCorruptedPosts().catch(console.error);

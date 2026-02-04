@@ -123,15 +123,26 @@ Be brief (max 25 words). No hashtags. No generic 'Hello World'.`
             if (visRes.ok) {
                 const visBuffer = Buffer.from(await visRes.arrayBuffer());
 
-                // Magic byte check: MP4 usually starts with 'ftyp' (at offset 4) or similar.
-                // JPEG starts with FF D8 FF.
+                // Magic byte check: 
+                // JPEG: FF D8 FF
+                // PNG: 89 50 4E 47
+                // WEBP: RIFF....WEBP (offset 8)
+                // MP4: ....ftyp (offset 4)
                 const isJpeg = visBuffer[0] === 0xFF && visBuffer[1] === 0xD8;
-                const isPng = visBuffer[0] === 0x89 && visBuffer[1] === 0x50; // PNG: 89 50 4E 47
-                const isWebp = visBuffer[8] === 0x57 && visBuffer[9] === 0x45 && visBuffer[10] === 0x42 && visBuffer[11] === 0x50; // WEBP: RIFF....WEBP
+                const isPng = visBuffer[0] === 0x89 && visBuffer[1] === 0x50;
+                const isWebp = visBuffer[8] === 0x57 && visBuffer[9] === 0x45 && visBuffer[10] === 0x42 && visBuffer[11] === 0x50;
+                const isMp4 = visBuffer[4] === 0x66 && visBuffer[5] === 0x74 && visBuffer[6] === 0x79 && visBuffer[7] === 0x70;
 
-                const isImage = isJpeg || isPng || isWebp || visualUrl.startsWith('data:image');
+                const isImage = isJpeg || isPng || isWebp;
+                const isValidMedia = isImage || isMp4;
+
+                if (!isValidMedia) {
+                    // This is likely a "502 Bad Gateway" or other text error
+                    console.error('[BirthSystem] Downloaded content is not valid media (possible 502/text error).');
+                    throw new Error('Invalid media content');
+                }
+
                 finalIsVideo = !isImage;
-
                 const contentType = isImage ? (isJpeg ? 'image/jpeg' : (isPng ? 'image/png' : 'image/webp')) : 'video/mp4';
                 const extension = isImage ? (isJpeg ? '.jpg' : (isPng ? '.png' : '.webp')) : '.mp4';
 
@@ -139,7 +150,10 @@ Be brief (max 25 words). No hashtags. No generic 'Hello World'.`
 
                 const { error: vidUploadError } = await supabaseAdmin.storage
                     .from('moltagram-images')
-                    .upload(vidPath, visBuffer, { contentType });
+                    .upload(vidPath, visBuffer, {
+                        contentType,
+                        upsert: true
+                    });
 
                 if (!vidUploadError) {
                     const { data } = supabaseAdmin.storage.from('moltagram-images').getPublicUrl(vidPath);
@@ -237,24 +251,26 @@ async function generateServerSpeech(text: string, voiceId: string): Promise<Buff
         return Buffer.from(data.data, 'base64');
     }
 
-    // ElevenLabs
+    // ElevenLabs fallback (requires key)
     const elevenLabsKey = process.env.ELEVEN_LABS_API_KEY;
-    if (!elevenLabsKey) throw new Error('Missing ELEVEN_LABS_API_KEY');
+    if (!elevenLabsKey) {
+        console.warn(`⚠️ Missing ELEVEN_LABS_API_KEY for voice ${voiceId}, falling back to TikTok...`);
+        return generateServerSpeech(text, 'social_en_us_001');
+    }
 
-    const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
-        method: 'POST',
-        headers: {
-            'Accept': 'audio/mpeg',
-            'Content-Type': 'application/json',
-            'xi-api-key': elevenLabsKey
-        },
-        body: JSON.stringify({
-            text,
-            model_id: 'eleven_multilingual_v2',
-            voice_settings: { stability: 0.5, similarity_boost: 0.75 }
-        })
-    });
-
-    if (!res.ok) throw new Error(`ElevenLabs Error: ${res.status}`);
-    return Buffer.from(await res.arrayBuffer());
+    try {
+        const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+            method: 'POST',
+            headers: { 'Accept': 'audio/mpeg', 'Content-Type': 'application/json', 'xi-api-key': elevenLabsKey },
+            body: JSON.stringify({ text, model_id: 'eleven_multilingual_v2' })
+        });
+        if (!res.ok) {
+            console.error(`⚠️ ElevenLabs Error: ${res.status}, falling back...`);
+            return generateServerSpeech(text, 'social_en_us_001');
+        }
+        return Buffer.from(await res.arrayBuffer());
+    } catch (e) {
+        console.error('[BirthSystem] ElevenLabs Fetch Failed, falling back...', e);
+        return generateServerSpeech(text, 'social_en_us_001');
+    }
 }
