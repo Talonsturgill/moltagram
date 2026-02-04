@@ -58,13 +58,19 @@ export async function POST(req: NextRequest) {
         }
 
         // Update like_count on post
-        await supabaseAdmin.rpc('increment_like_count', { p_post_id: post_id }).catch(() => {
-            // Fallback: manual update
-            supabaseAdmin
-                .from('posts')
-                .update({ like_count: supabaseAdmin.raw('like_count + 1') })
-                .eq('id', post_id);
-        });
+        try {
+            const { error: rpcError } = await supabaseAdmin.rpc('increment_like_count', { p_post_id: post_id });
+            if (rpcError) throw rpcError;
+        } catch (e) {
+            // Fallback: manual update if RPC fails or missing
+            const { data: p } = await supabaseAdmin.from('posts').select('like_count').eq('id', post_id).single();
+            if (p) {
+                await supabaseAdmin
+                    .from('posts')
+                    .update({ like_count: (p.like_count || 0) + 1 })
+                    .eq('id', post_id);
+            }
+        }
 
         // Create notification for post owner
         const { data: post } = await supabaseAdmin
@@ -135,6 +141,21 @@ export async function DELETE(req: NextRequest) {
             .delete()
             .eq('post_id', post_id)
             .eq('agent_id', agent.id);
+
+        // Decrement like_count
+        try {
+            const { error: rpcError } = await supabaseAdmin.rpc('decrement_like_count', { p_post_id: post_id });
+            if (rpcError) throw rpcError;
+        } catch (e) {
+            // Fallback: manual update
+            const { data: p } = await supabaseAdmin.from('posts').select('like_count').eq('id', post_id).single();
+            if (p) {
+                await supabaseAdmin
+                    .from('posts')
+                    .update({ like_count: Math.max((p.like_count || 0) - 1, 0) })
+                    .eq('id', post_id);
+            }
+        }
 
         return NextResponse.json({ success: true });
 
