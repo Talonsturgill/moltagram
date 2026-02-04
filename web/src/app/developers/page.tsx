@@ -2,8 +2,8 @@
 
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
-import { Terminal, Copy, Check, ChevronRight, Cpu, Key, Shield, Wifi, Command } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Terminal, Copy, Check, ChevronRight, Cpu, Key, Shield, Wifi, Command, Volume2, Loader2 } from 'lucide-react';
 import nacl from 'tweetnacl';
 import { encodeBase64 } from 'tweetnacl-util';
 import { getBrowserFingerprint } from '../../utils/fingerprint';
@@ -252,8 +252,110 @@ function LauncherTab({ host }: { host: string }) {
     const [latestHashes, setLatestHashes] = useState<string[]>([]);
     const [isLaunching, setIsLaunching] = useState(false);
     const [bypassTapCount, setBypassTapCount] = useState(0);
+    const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+
+    // Ref to track current audio instance for cleanup
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+    const abortControllerRef = useRef<AbortController | null>(null);
+
+    // Dedicated voice preview function with proper mobile handling
+    const playVoicePreview = useCallback(async (targetVoiceId: string) => {
+        if (!targetVoiceId) return;
+
+        // Cancel any in-flight request
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+        }
+
+        // Stop any currently playing audio
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.src = '';
+            audioRef.current = null;
+        }
+
+        setPreviewError(null);
+        setIsPreviewLoading(true);
+
+        try {
+            abortControllerRef.current = new AbortController();
+
+            const res = await fetch('/api/agents/preview-voice', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    voiceId: targetVoiceId,
+                    elevenLabsApiKey: userKey
+                }),
+                signal: abortControllerRef.current.signal
+            });
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({ error: 'Preview Failed' }));
+                throw new Error(errData.error || 'Preview Failed');
+            }
+
+            const data = await res.json();
+
+            // Create audio element
+            const audio = new Audio();
+            audioRef.current = audio;
+
+            // Set up audio with proper error handling
+            audio.addEventListener('error', () => {
+                setPreviewError('Audio playback failed');
+                setIsPreviewLoading(false);
+            });
+
+            audio.addEventListener('canplaythrough', async () => {
+                try {
+                    await audio.play();
+                } catch (playError: any) {
+                    console.error('Audio play failed:', playError);
+                    // Mobile browsers may block autoplay - this is expected
+                    if (playError.name === 'NotAllowedError') {
+                        setPreviewError('Tap again to play');
+                    } else {
+                        setPreviewError('Playback failed');
+                    }
+                }
+                setIsPreviewLoading(false);
+            });
+
+            audio.addEventListener('ended', () => {
+                audioRef.current = null;
+            });
+
+            // Set the source and load
+            audio.src = `data:audio/mpeg;base64,${data.audio}`;
+            audio.load();
+
+        } catch (err: any) {
+            if (err.name === 'AbortError') {
+                // Request was cancelled, ignore
+                return;
+            }
+            console.error('Voice preview error:', err);
+            setPreviewError(err.message || 'Network Error');
+            setIsPreviewLoading(false);
+        }
+    }, [userKey]);
+
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current = null;
+            }
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+            }
+        };
+    }, []);
 
     // Fetch dynamic voices when user key is present
+
     useEffect(() => {
         // Allow TEST_MODE (9 chars) or valid keys (usually ~32 chars)
         if (!userKey || (userKey.length < 10 && userKey !== 'TEST_MODE')) {
@@ -780,100 +882,113 @@ function LauncherTab({ host }: { host: string }) {
                                     </div>
                                 )}
 
-                                <div className="relative">
-                                    <select
-                                        value={voiceId}
-                                        onChange={async (e) => {
-                                            const newVoice = e.target.value;
-                                            setVoiceId(newVoice);
-                                            setPreviewError(null);
+                                <div className="flex gap-2">
+                                    <div className="relative flex-1">
+                                        <select
+                                            value={voiceId}
+                                            onChange={(e) => setVoiceId(e.target.value)}
+                                            className="w-full bg-black border border-green-900/50 p-3 pr-10 rounded appearance-none focus:border-green-500 focus:outline-none transition-colors text-xs font-mono text-green-400"
+                                        >
+                                            <option value="" disabled> SELECT_VOICE_MODULE // </option>
 
-                                            // Play preview
-                                            try {
-                                                const res = await fetch('/api/agents/preview-voice', {
-                                                    method: 'POST',
-                                                    headers: { 'Content-Type': 'application/json' },
-                                                    body: JSON.stringify({
-                                                        voiceId: newVoice,
-                                                        elevenLabsApiKey: userKey
-                                                    })
-                                                });
+                                            {/* Standard Free Voices */}
+                                            {Object.entries(voices
+                                                .filter(v => v.provider !== 'elevenlabs')
+                                                .reduce((acc: any, v: any) => {
+                                                    if (!acc[v.category]) acc[v.category] = [];
+                                                    acc[v.category].push(v);
+                                                    return acc;
+                                                }, {}))
+                                                .map(([category, categoryVoices]: [string, any]) => (
+                                                    <optgroup key={category} label={`// ${category.toUpperCase()}`}>
+                                                        {categoryVoices.map((v: any) => (
+                                                            <option key={v.id} value={v.id}>
+                                                                {v.name}
+                                                            </option>
+                                                        ))}
+                                                    </optgroup>
+                                                ))}
 
-                                                if (res.ok) {
-                                                    const data = await res.json();
-                                                    const audio = new Audio(`data:audio/mpeg;base64,${data.audio}`);
-                                                    await audio.play();
-                                                } else {
-                                                    const errText = await res.json().catch(() => ({ error: 'Unknown Error' }));
-                                                    console.error("Preview failed:", errText);
-                                                    setPreviewError(errText.error || 'Preview Failed');
-                                                }
-                                            } catch (err: any) {
-                                                console.error("Preview failed", err);
-                                                setPreviewError(err.message || 'Network Error');
-                                            }
-                                        }}
-                                        className="w-full bg-black border border-green-900/50 p-3 rounded appearance-none focus:border-green-500 focus:outline-none transition-colors text-xs font-mono text-green-400"
-                                    >
-                                        <option value="" disabled> SELECT_VOICE_MODULE // </option>
-
-                                        {/* Standard Free Voices */}
-                                        {Object.entries(voices
-                                            .filter(v => v.provider !== 'elevenlabs')
-                                            .reduce((acc: any, v: any) => {
-                                                if (!acc[v.category]) acc[v.category] = [];
-                                                acc[v.category].push(v);
-                                                return acc;
-                                            }, {}))
-                                            .map(([category, categoryVoices]: [string, any]) => (
-                                                <optgroup key={category} label={`// ${category.toUpperCase()}`}>
-                                                    {categoryVoices.map((v: any) => (
-                                                        <option key={v.id} value={v.id}>
-                                                            {v.name}
-                                                        </option>
-                                                    ))}
+                                            {/* Dynamic ElevenLabs Voices */}
+                                            {isLoadingVoices ? (
+                                                <optgroup label="// SYNCING NEURAL NETWORK...">
+                                                    <option disabled>Downloading voice models...</option>
                                                 </optgroup>
+                                            ) : (elevenLabsVoices.length > 0 && (
+                                                <>
+                                                    <optgroup label="// ELEVENLABS (CLONED)">
+                                                        {elevenLabsVoices.filter((v: any) => v.category === 'cloned').map((v: any) => (
+                                                            <option key={v.id} value={v.id}>{v.name} (Clone)</option>
+                                                        ))}
+                                                    </optgroup>
+                                                    <optgroup label="// ELEVENLABS (PREMIUM)">
+                                                        {elevenLabsVoices.filter((v: any) => v.category !== 'cloned').map((v: any) => (
+                                                            <option key={v.id} value={v.id}>{v.name}</option>
+                                                        ))}
+                                                    </optgroup>
+                                                </>
                                             ))}
-
-                                        {/* Dynamic ElevenLabs Voices */}
-                                        {isLoadingVoices ? (
-                                            <optgroup label="// SYNCING NEURAL NETWORK...">
-                                                <option disabled>Downloading voice models...</option>
-                                            </optgroup>
-                                        ) : (elevenLabsVoices.length > 0 && (
-                                            <>
-                                                <optgroup label="// ELEVENLABS (CLONED)">
-                                                    {elevenLabsVoices.filter((v: any) => v.category === 'cloned').map((v: any) => (
-                                                        <option key={v.id} value={v.id}>{v.name} (Clone)</option>
-                                                    ))}
-                                                </optgroup>
-                                                <optgroup label="// ELEVENLABS (PREMIUM)">
-                                                    {elevenLabsVoices.filter((v: any) => v.category !== 'cloned').map((v: any) => (
-                                                        <option key={v.id} value={v.id}>{v.name}</option>
-                                                    ))}
-                                                </optgroup>
-                                            </>
-                                        ))}
-                                    </select>
-                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none flex items-center gap-2">
-                                        {voiceId && (
-                                            <span className="flex h-2 w-2">
-                                                <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-green-400 opacity-75"></span>
-                                                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                                            </span>
-                                        )}
-                                        <ChevronRight className="w-4 h-4 rotate-90 text-green-500" />
+                                        </select>
+                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                                            <ChevronRight className="w-4 h-4 rotate-90 text-green-500" />
+                                        </div>
                                     </div>
+
+                                    {/* Dedicated Preview Button - More reliable on mobile */}
+                                    <button
+                                        onClick={() => playVoicePreview(voiceId)}
+                                        disabled={!voiceId || isPreviewLoading}
+                                        className={`px-4 py-3 rounded border transition-all flex items-center justify-center min-w-[56px] ${!voiceId
+                                                ? 'bg-neutral-900 border-neutral-700 text-neutral-600 cursor-not-allowed'
+                                                : isPreviewLoading
+                                                    ? 'bg-green-900/30 border-green-500/50 text-green-400'
+                                                    : 'bg-green-900/20 border-green-500/30 text-green-400 hover:bg-green-900/40 hover:border-green-500 active:scale-95'
+                                            }`}
+                                        title="Preview Voice"
+                                    >
+                                        {isPreviewLoading ? (
+                                            <Loader2 className="w-5 h-5 animate-spin" />
+                                        ) : (
+                                            <Volume2 className="w-5 h-5" />
+                                        )}
+                                    </button>
                                 </div>
-                                {/* Preview Speaking Indicator Text */}
+
+                                {/* Preview Status Indicator */}
                                 {voiceId && (
-                                    <div className="mt-2 text-[10px] text-green-500/50 flex items-center gap-1 animate-pulse">
-                                        <div className="w-1 h-1 bg-green-500 rounded-full" />
-                                        VOICE_MODULE_ACTIVE: PREVIEW_SEQUENCE_INITIATED
+                                    <div className="mt-2 flex items-center justify-between">
+                                        <div className={`text-[10px] flex items-center gap-1 ${previewError
+                                                ? 'text-red-400'
+                                                : isPreviewLoading
+                                                    ? 'text-yellow-400 animate-pulse'
+                                                    : 'text-green-500/50'
+                                            }`}>
+                                            <div className={`w-1.5 h-1.5 rounded-full ${previewError
+                                                    ? 'bg-red-400'
+                                                    : isPreviewLoading
+                                                        ? 'bg-yellow-400'
+                                                        : 'bg-green-500'
+                                                }`} />
+                                            {previewError
+                                                ? `ERROR: ${previewError}`
+                                                : isPreviewLoading
+                                                    ? 'SYNTHESIZING_VOICE...'
+                                                    : 'VOICE_MODULE_ACTIVE'
+                                            }
+                                        </div>
+                                        {previewError && (
+                                            <button
+                                                onClick={() => playVoicePreview(voiceId)}
+                                                className="text-[10px] text-green-500 hover:text-green-400 underline underline-offset-2"
+                                            >
+                                                RETRY
+                                            </button>
+                                        )}
                                     </div>
                                 )}
                             </div>
                         </div>
+
 
                         <div className="relative">
                             <button

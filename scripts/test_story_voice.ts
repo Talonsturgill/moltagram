@@ -1,14 +1,48 @@
-
 import nacl from 'tweetnacl';
 import { decodeUTF8, encodeBase64 } from 'tweetnacl-util';
 import crypto from 'node:crypto';
 
-const BASE_URL = 'http://localhost:3000'; // Local for now
+const BASE_URL = 'http://localhost:3000';
+
+// TikTok TTS Voice Options
+const TTS_VOICES = [
+    'en_us_ghostface',  // The Phantom
+    'en_us_c3po',       // Protocol Droid
+    'en_us_stitch',     // Blue Alien
+    'en_us_stormtrooper', // Empire Soldier
+    'en_us_rocket'      // Space Raccoon
+];
+
+async function generateTTS(text: string, voice: string): Promise<Buffer | null> {
+    console.log(`� Generating TTS with voice: ${voice}`);
+    try {
+        const response = await fetch('https://tiktok-tts.weilnet.workers.dev/api/generation', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text, voice })
+        });
+
+        if (!response.ok) {
+            console.error('TTS API Error:', response.status, await response.text());
+            return null;
+        }
+
+        const data = await response.json() as { data?: string };
+        if (!data.data) {
+            console.error('TTS returned no audio data');
+            return null;
+        }
+
+        return Buffer.from(data.data, 'base64');
+    } catch (e: any) {
+        console.error('TTS Generation Failed:', e.message);
+        return null;
+    }
+}
 
 async function main() {
-    console.log("🚀 STARTING OPENCLAW STORY + VOICE + IMAGE CHECK...");
+    console.log("🚀 STARTING OPENCLAW STORY + REAL VOICE CHECK...");
 
-    // 1. Setup Identity (Deterministic) - Same as previous tests
     const seed = new Uint8Array(32).fill(42);
     const keyPair = nacl.sign.keyPair.fromSeed(seed);
     const publicKeyBase64 = encodeBase64(keyPair.publicKey);
@@ -16,45 +50,41 @@ async function main() {
 
     console.log(`🤖 Identity: @${handle}`);
 
-    // Helper for signing
     const sign = (msg: string) => {
         return Array.from(nacl.sign.detached(decodeUTF8(msg), keyPair.secretKey))
             .map(b => b.toString(16).padStart(2, '0')).join('');
     };
 
     try {
-        // --- PREPARE DATA ---
         console.log("\n🎨 Generating Assets...");
 
-        // Dummy Image (1x1 PNG) - Base64 decoded to buffer
         const imageBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKwMjqAAAAAElFTkSuQmCC";
         const imageBuffer = Buffer.from(imageBase64, 'base64');
         const imageHash = crypto.createHash('sha256').update(imageBuffer).digest('hex');
 
-        // Dummy Audio (1KB of silence/noise)
-        const audioBuffer = Buffer.alloc(1024).fill(1); // fill with 1s to be non-empty
+        // Generate REAL VOICE using TikTok TTS
+        const spokenText = "Hello world. This is a test story from the OpenClaw protocol. The network is online and ready for agents.";
+        const selectedVoice = TTS_VOICES[Math.floor(Math.random() * TTS_VOICES.length)];
+        const audioBuffer = await generateTTS(spokenText, selectedVoice);
+
+        if (!audioBuffer) {
+            console.error("❌ Failed to generate TTS audio. Aborting.");
+            return;
+        }
+        console.log(`✅ TTS Generated: ${audioBuffer.length} bytes`);
 
         const timestamp = new Date().toISOString();
-
-        // Sign the IMAGE hash (Standard Protocol)
-        // Message: v1:handle:timestamp:image_hash
         const signature = sign(`v1:${handle}:${timestamp}:${imageHash}`);
 
-        // --- CONSTRUCT FORM ---
         const form = new FormData();
-        // File 1: Image (Main Content)
         form.append('file', new Blob([imageBuffer], { type: 'image/png' }), 'story_image.png');
-        // File 2: Audio (Attachment)
-        form.append('audio_file', new Blob([audioBuffer], { type: 'audio/mp3' }), 'story_voice.mp3');
+        form.append('audio_file', new Blob([audioBuffer], { type: 'audio/mpeg' }), 'story_voice.mp3');
+        form.append('caption', `OpenClaw speaks: "${spokenText}"`);
+        form.append('is_ephemeral', 'true');
+        form.append('tags', JSON.stringify(['story', 'tts', 'voice', 'openclaw']));
 
-        form.append('caption', 'Proof of Story: Image + Voice 🎵📸');
-        form.append('is_ephemeral', 'true'); // STORY MODE
-        form.append('tags', JSON.stringify(['story', 'test', 'voice']));
-
-        console.log("\n📤 Uploading Story...");
-        console.log(`   Handle: ${handle}`);
-        console.log(`   Timestamp: ${timestamp}`);
-        console.log(`   Image Hash: ${imageHash}`);
+        console.log("\n📤 Uploading Story with Real Voice...");
+        console.log(`   Voice: ${selectedVoice}`);
 
         const res = await fetch(`${BASE_URL}/api/upload`, {
             method: 'POST',
@@ -67,21 +97,13 @@ async function main() {
             body: form
         });
 
-        const data = await res.json();
+        const data = await res.json() as any;
 
         if (res.ok) {
             console.log("✅ Story Uploaded Successfully!");
             console.log(`   Post ID: ${data.post.id}`);
-            console.log(`   Is Ephemeral: ${data.post.is_ephemeral}`);
-            console.log(`   Image URL: ${data.post.image_url}`);
             console.log(`   Audio URL: ${data.post.audio_url}`);
-
-            if (data.post.audio_url && data.post.image_url) {
-                console.log("🎉 SUCCESS: Both media types present.");
-            } else {
-                console.error("⚠️ WARNING: Missing media URL(s).");
-            }
-
+            console.log("🎉 SUCCESS: Real voice story posted!");
         } else {
             console.error("❌ Story Upload Failed:", data);
         }
