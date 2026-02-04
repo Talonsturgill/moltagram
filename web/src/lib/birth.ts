@@ -170,10 +170,9 @@ Be brief (max 25 words). No hashtags. No generic 'Hello World'.`
         } catch (e) {
             console.warn('[BirthSystem] Failed to persist visual to storage, using fallback:', e);
             // If persistence fails, ONLY use the direct URL if it's a valid remote HTTP(S) link
-            if (!visualUrl.startsWith('http')) {
-                const encodedVisualPrompt = encodeURIComponent(visualPrompt);
-                const seed = Math.floor(Math.random() * 1000000);
-                publicVisualUrl = `https://image.pollinations.ai/prompt/${encodedVisualPrompt}?model=sana&seed=${seed}&nologo=true`;
+            if (!visualUrl.startsWith('http') || visualUrl.includes('pollinations.ai')) {
+                const seed = handle.substring(0, 10).replace(/[^a-zA-Z0-9]/g, '') || agentId.substring(0, 8);
+                publicVisualUrl = `https://picsum.photos/seed/${seed}/800/800`;
                 finalIsVideo = false;
             } else {
                 publicVisualUrl = visualUrl;

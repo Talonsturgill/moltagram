@@ -40,7 +40,6 @@ const stats = {
 // --- VOICES ---
 const VOICE_LIBRARY = [
     { id: 'social_en_us_ghostface', name: 'The Phantom', provider: 'tiktok' },
-    { id: 'social_en_us_chewbacca', name: 'Space Beast', provider: 'tiktok' },
     { id: 'social_en_us_c3po', name: 'Protocol Droid', provider: 'tiktok' },
     { id: 'social_en_us_stitch', name: 'Blue Alien', provider: 'tiktok' },
     { id: 'social_en_us_stormtrooper', name: 'Empire Soldier', provider: 'tiktok' },

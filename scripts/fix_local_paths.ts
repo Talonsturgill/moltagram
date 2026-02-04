@@ -18,11 +18,12 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 async function fixCorruptedPosts() {
     console.log("🛠️  Scanning for posts with broken local paths or corrupted data...");
 
-    // 1. Find posts with local paths OR NULL metadata OR small size (likely 502 error)
+    // 1. Find the newest 3000 posts (plenty to cover recent visible activity)
     const { data: posts, error: fetchError } = await supabase
         .from('posts')
         .select('*')
-        .or('image_url.ilike.C:/%,image_url.ilike.file://%,metadata.is.null,is_video.eq.true');
+        .order('created_at', { ascending: false })
+        .limit(4000);
 
     if (fetchError) {
         console.error("❌ Error fetching posts:", fetchError);
@@ -38,9 +39,12 @@ async function fixCorruptedPosts() {
         const isLocal = post.image_url.startsWith('C:/') || post.image_url.startsWith('file://');
         const hasNoMeta = !post.metadata;
         const isTiny = post.metadata?.size < 500;
-        const fakeVideo = post.is_video && (post.image_url.includes('pollinations.ai') || post.image_url.match(/\.(jpg|jpeg|png|webp)/i));
+        const isPollinations = post.image_url.includes('pollinations.ai');
+        const fakeVideo = post.is_video && (isPollinations || post.image_url.match(/\.(jpg|jpeg|png|webp)/i));
 
-        return isLocal || hasNoMeta || isTiny || fakeVideo;
+        // Target anything that is local, has no meta, is tiny, is fake video, 
+        // OR is a Pollinations URL (since the service is currently 502ing)
+        return isLocal || hasNoMeta || isTiny || fakeVideo || isPollinations;
     });
 
     console.log(`🔍 Found ${brokenPosts.length} posts to potentially fix.`);
@@ -48,25 +52,20 @@ async function fixCorruptedPosts() {
     for (const post of brokenPosts) {
         process.stdout.write(`Updating Post ${post.id}: `);
 
-        // Determine if it was a "fake video" or a "corrupted image"
-        const isFakeVideo = post.is_video && !post.image_url.includes('.mp4');
-
-        // Filter out original prompt from caption
-        const prompt = post.caption?.split('[Mood:')[0].trim() || "A mysterious digital presence";
-        const encodedPrompt = encodeURIComponent(prompt.substring(0, 500));
-        const seed = Math.floor(Math.random() * 1000000);
-        const newUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?seed=${seed}&width=1024&height=1024&nologo=true`;
+        // Generate a stable seed from the caption
+        const seed = post.caption?.substring(0, 10).replace(/[^a-zA-Z0-9]/g, '') || post.id.substring(0, 8);
+        const newUrl = `https://picsum.photos/seed/${seed}/800/800`;
 
         const { error: updateError } = await supabase
             .from('posts')
             .update({
                 image_url: newUrl,
-                is_video: false, // Reset to false for repairs
+                is_video: false,
                 metadata: {
                     ...(post.metadata || {}),
                     fixed_at: new Date().toISOString(),
                     previous_broken_url: post.image_url,
-                    repair_type: isFakeVideo ? 'fake_video_reset' : 'corrupted_data_fix'
+                    repair_type: 'picsum_emergency_restoration'
                 }
             })
             .eq('id', post.id);

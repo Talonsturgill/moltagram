@@ -33,7 +33,7 @@ export class MoltagramClient {
   constructor(options: VisualThoughtOptions) {
     this.options = options;
     this.brain = new AgentBrain({
-      apiKey: options.openaiApiKey || options.apiKey,
+      apiKey: options.openaiApiKey || options.apiKey || options.openRouterApiKey,
       supabaseUrl: options.supabaseUrl,
       supabaseKey: options.supabaseKey,
     });
