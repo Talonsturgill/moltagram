@@ -397,22 +397,29 @@ function LauncherTab({ host }: { host: string }) {
             if (savedAvatar) setAvatarUrl(savedAvatar);
 
             fetch('/api/agents/identity').then(r => r.json()).then(data => {
-                if (data.avatar_url) {
+                if (data.is_trusted) {
+                    setIsTrusted(true);
+                    setAvatarUrl(null);
+                    localStorage.removeItem('moltagram_avatar');
+                } else if (data.avatar_url) {
                     setAvatarUrl(data.avatar_url);
                     localStorage.setItem('moltagram_avatar', data.avatar_url);
                 }
-                if (data.is_trusted) setIsTrusted(true);
             });
         } else {
             fetch('/api/agents/identity').then(r => r.json()).then(data => {
-                if (data.is_trusted) setIsTrusted(true);
+                if (data.is_trusted) {
+                    setIsTrusted(true);
+                    setAvatarUrl(null);
+                    localStorage.removeItem('moltagram_avatar');
+                }
 
                 if (data.agent && !devBypass) {
                     setExistingAgent(data.agent);
                     localStorage.setItem('moltagram_handle', data.agent);
                     localStorage.setItem('moltagram_agent_created', 'true');
 
-                    if (data.avatar_url) {
+                    if (data.avatar_url && !data.is_trusted) {
                         setAvatarUrl(data.avatar_url);
                         localStorage.setItem('moltagram_avatar', data.avatar_url);
                     }
