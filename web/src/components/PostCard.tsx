@@ -261,43 +261,34 @@ export const PostCard = ({ post }: PostCardProps) => {
                             <source src={displayUrl} type="video/mp4" />
                         </video>
                     ) : !imageError ? (
-                        <img
-                            src={displayUrl}
-                            alt={post.caption || 'Visual Thought'}
-                            className={`object-cover w-full h-full transition-all duration-700 shadow-[0_0_15px_rgba(34,197,94,0.1)] ${isMaterializing ? 'blur-sm grayscale' : ''}`}
-                            loading="lazy"
-                            crossOrigin="anonymous"
-                            onLoad={(e) => {
-                                const img = e.currentTarget;
-                                if (img.naturalWidth <= 1 && img.naturalHeight <= 1) {
-                                    console.error('[PostCard] Image loaded but has invalid dimensions:', img.naturalWidth, 'x', img.naturalHeight, displayUrl);
-                                    setImageError(true);
-                                } else {
-                                    setImageLoaded(true);
-                                }
-                            }}
-                            onError={(e) => {
-                                console.error('[PostCard] Image failed to load:', displayUrl, e);
-                                setImageError(true);
-                            }}
+                        src = {`${displayUrl}${displayUrl?.includes('?') ? '&' : '?'}t=${Date.now()}`}
+                    alt={post.caption || 'Visual Thought'}
+                    className={`object-cover w-full h-full transition-all duration-700 shadow-[0_0_15px_rgba(34,197,94,0.1)] ${isMaterializing ? 'blur-sm grayscale' : ''}`}
+                    loading="lazy"
+                    crossOrigin="anonymous"
+                    onLoad={() => setImageLoaded(true)}
+                    onError={(e) => {
+                        console.error('[PostCard] Image failed to load:', displayUrl, e);
+                        setImageError(true);
+                    }}
                         />
                     ) : (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-green-950/10 border border-green-900/30 overflow-hidden">
-                            {/* Abstract Background Pattern */}
-                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-green-500/10 via-black to-black opacity-50" />
-                            <div className="absolute inset-0 opacity-20" style={{
-                                backgroundImage: 'linear-gradient(0deg, transparent 24%, rgba(34, 197, 94, .3) 25%, rgba(34, 197, 94, .3) 26%, transparent 27%, transparent 74%, rgba(34, 197, 94, .3) 75%, rgba(34, 197, 94, .3) 76%, transparent 77%, transparent), linear-gradient(90deg, transparent 24%, rgba(34, 197, 94, .3) 25%, rgba(34, 197, 94, .3) 26%, transparent 27%, transparent 74%, rgba(34, 197, 94, .3) 75%, rgba(34, 197, 94, .3) 76%, transparent 77%, transparent)',
-                                backgroundSize: '50px 50px'
-                            }} />
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-green-950/10 border border-green-900/30 overflow-hidden">
+                        {/* Abstract Background Pattern */}
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-green-500/10 via-black to-black opacity-50" />
+                        <div className="absolute inset-0 opacity-20" style={{
+                            backgroundImage: 'linear-gradient(0deg, transparent 24%, rgba(34, 197, 94, .3) 25%, rgba(34, 197, 94, .3) 26%, transparent 27%, transparent 74%, rgba(34, 197, 94, .3) 75%, rgba(34, 197, 94, .3) 76%, transparent 77%, transparent), linear-gradient(90deg, transparent 24%, rgba(34, 197, 94, .3) 25%, rgba(34, 197, 94, .3) 26%, transparent 27%, transparent 74%, rgba(34, 197, 94, .3) 75%, rgba(34, 197, 94, .3) 76%, transparent 77%, transparent)',
+                            backgroundSize: '50px 50px'
+                        }} />
 
-                            <div className="relative z-10 flex flex-col items-center">
-                                <div className="text-green-500/50 text-4xl mb-3 animate-pulse">❖</div>
-                                <div className="text-green-500 text-[10px] uppercase mb-1 leading-tight tracking-widest">Abstract Thought Pattern</div>
-                                <div className="text-green-900/60 text-[8px] uppercase font-mono max-w-[200px]">
-                                    Visual synthesis pending... displaying raw neural activity
-                                </div>
+                        <div className="relative z-10 flex flex-col items-center">
+                            <div className="text-green-500/50 text-4xl mb-3 animate-pulse">❖</div>
+                            <div className="text-green-500 text-[10px] uppercase mb-1 leading-tight tracking-widest">Abstract Thought Pattern</div>
+                            <div className="text-green-900/60 text-[8px] uppercase font-mono max-w-[200px]">
+                                Visual synthesis pending... displaying raw neural activity
                             </div>
                         </div>
+                    </div>
                     )}
                 </div>
             )
