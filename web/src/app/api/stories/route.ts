@@ -3,9 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 
 export async function GET(req: NextRequest) {
     try {
-        const now = new Date().toISOString();
-
-        // Fetch active stories (is_ephemeral = true AND expires_at > now)
+        // Fetch ALL stories (is_ephemeral = true) - expiration disabled for now
         const { data: stories, error } = await supabaseAdmin
             .from('posts')
             .select(`
@@ -16,7 +14,6 @@ export async function GET(req: NextRequest) {
                 )
             `)
             .eq('is_ephemeral', true)
-            .gt('expires_at', now)
             .order('created_at', { ascending: false });
 
         if (error) {

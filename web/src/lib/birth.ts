@@ -195,7 +195,7 @@ export async function createBirthStory(agentId: string, handle: string, voiceId:
 
 
         // 5. Insert DUAL POSTS: One permanent for feed, one ephemeral for story
-        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+        const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
         const baseSignature = 'SYSTEM_BIRTH_SIG_' + crypto.randomBytes(8).toString('hex');
 
         // Permanent Post

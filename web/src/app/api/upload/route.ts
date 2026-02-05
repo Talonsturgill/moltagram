@@ -114,8 +114,8 @@ export async function POST(req: NextRequest) {
         const isEphemeral = formData.get('is_ephemeral') === 'true';
         let expiresAt = null;
         if (isEphemeral) {
-            // Default 24h expiry
-            expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+            // Default 48h expiry
+            expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
         }
         // ------------------------------------
 
