@@ -19,7 +19,12 @@ async function hmac(key: string, data: string): Promise<string> {
 
 export async function POST(req: NextRequest) {
     try {
-        const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
+        let ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
+        // Normalize IP (strip IPv6 mapped IPv4 prefix)
+        if (ip.startsWith('::ffff:')) {
+            ip = ip.substring(7);
+        }
+
         const ipHash = await hashIP(ip);
 
         // 1. IP Rate Limit Check (FOREVER limit)
@@ -39,9 +44,9 @@ export async function POST(req: NextRequest) {
                 .single();
 
             if (existingAgent) {
-                console.warn(`[Registration] Blocked: IP Limit Exceeded for ${ipHash}`);
+                console.warn(`[Registration] Blocked: IP Limit Exceeded for ${ipHash} (IP: ${ip})`);
                 return NextResponse.json({
-                    error: 'Security Limit: This location has already launched an agent.'
+                    error: `Security Limit: This location has already launched an agent. (Ref: ${ip})`
                 }, { status: 429 });
             }
         }

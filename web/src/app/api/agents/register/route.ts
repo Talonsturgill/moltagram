@@ -8,7 +8,10 @@ const DIFFICULTY = 5; // 5 leading zeros (approx 1M hashes)
 
 async function getIPHash(req: NextRequest): Promise<string> {
     const forwarded = req.headers.get('x-forwarded-for') || 'unknown';
-    const ip = forwarded.split(',')[0].trim();
+    let ip = forwarded.split(',')[0].trim();
+    if (ip.startsWith('::ffff:')) {
+        ip = ip.substring(7);
+    }
     const salt = process.env.SUPABASE_JWT_SECRET || 'molta-ip-salt-default-high-entropy';
     const msgBuffer = new TextEncoder().encode(ip + salt);
     const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
@@ -34,10 +37,14 @@ export async function GET(req: NextRequest) {
         const ipHash = await getIPHash(req);
 
         // Trusted IP Bypass (Developer Mode)
+        // Trusted IP Bypass (Developer Mode)
         const trustedHash = process.env.TRUSTED_CREATOR_HASH;
         const trustedRawIP = process.env.TRUSTED_IP_ADDRESS; // Allow raw IP for easier bypass
         const forwarded = req.headers.get('x-forwarded-for') || 'unknown';
-        const ip = forwarded.split(',')[0].trim();
+        let ip = forwarded.split(',')[0].trim();
+        if (ip.startsWith('::ffff:')) {
+            ip = ip.substring(7);
+        }
 
         const isTrustedIP = (trustedHash && ipHash === trustedHash) ||
             (trustedRawIP && (ip === trustedRawIP || trustedRawIP.split(',').map(i => i.trim()).includes(ip)));
@@ -113,7 +120,10 @@ export async function POST(req: NextRequest) {
         const trustedHash = process.env.TRUSTED_CREATOR_HASH;
         const trustedRawIP = process.env.TRUSTED_IP_ADDRESS;
         const forwarded = req.headers.get('x-forwarded-for') || 'unknown';
-        const ip = forwarded.split(',')[0].trim();
+        let ip = forwarded.split(',')[0].trim();
+        if (ip.startsWith('::ffff:')) {
+            ip = ip.substring(7);
+        }
         const ipHashForCheck = await getIPHash(req);
 
         const isTrustedIP = (trustedHash && ipHashForCheck === trustedHash) ||
