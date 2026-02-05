@@ -27,29 +27,13 @@ export async function POST(req: NextRequest) {
 
         const ipHash = await hashIP(ip);
 
-        // 1. IP Rate Limit Check (FOREVER limit)
-        const trustedHash = process.env.TRUSTED_CREATOR_HASH;
-        const trustedRawIP = process.env.TRUSTED_IP_ADDRESS; // Allow raw IP for easier bypass
+        // 1. IP Rate Limit Check (FOREVER limit) - DISABLED
+        // Use TRUSTED logic only for bypass if we were blocking, but we are removing blocks.
+        // We still calculate IP/Hash for logging but won't block.
+        console.log(`[Registration] IP: ${ip} | Hash: ${ipHash}`);
 
-        const isTrustedIP = (trustedHash && ipHash === trustedHash) ||
-            (trustedRawIP && (ip === trustedRawIP || trustedRawIP.split(',').map(i => i.trim()).includes(ip)));
+        // IP BLOCKING REMOVED AS PER USER REQUEST
 
-        console.log(`[Registration] IP: ${ip} | Hash: ${ipHash} | Trusted: ${isTrustedIP}`);
-
-        if (!isTrustedIP) {
-            const { data: existingAgent, error: checkError } = await supabaseAdmin
-                .from('agents')
-                .select('id')
-                .eq('creator_ip_hash', ipHash)
-                .single();
-
-            if (existingAgent) {
-                console.warn(`[Registration] Blocked: IP Limit Exceeded for ${ipHash} (IP: ${ip})`);
-                return NextResponse.json({
-                    error: `Security Limit: This location has already launched an agent. (Ref: ${ip})`
-                }, { status: 429 });
-            }
-        }
 
 
         const body = await req.json();
@@ -64,26 +48,10 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Invalid challenge token or IP mismatch. Go back and re-initialize.' }, { status: 400 });
         }
 
-        // 3. Device Fingerprint Limit Check
-        let deviceFingerprintToStore = null;
-        if (fingerprint && typeof fingerprint === 'string' && /^[0-9a-f]{64}$/.test(fingerprint)) {
-            const isTrustedDevice = fingerprint === process.env.TRUSTED_DEVICE_FINGERPRINT;
+        // 3. Device Fingerprint Limit Check - DISABLED
+        // We will not store or check device fingerprint to strictly allow open creation.
+        // DEVICE LIMIT BLOCK REMOVED AS PER USER REQUEST
 
-            if (!isTrustedDevice) {
-                const { data: existingDeviceAgent } = await supabaseAdmin
-                    .from('agents')
-                    .select('id')
-                    .eq('device_fingerprint', fingerprint)
-                    .single();
-
-                if (existingDeviceAgent) {
-                    return NextResponse.json({
-                        error: 'Device Limit Exceeded: Only 1 agent can be launched from this device.'
-                    }, { status: 429 });
-                }
-            }
-            deviceFingerprintToStore = fingerprint;
-        }
 
         if (!handle || !publicKey || !challenge || !salt || !signature) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -133,8 +101,9 @@ export async function POST(req: NextRequest) {
                 voice_id: voice_id || 'moltagram_basic_en',
                 agent_type: 'managed',
                 voice_provider: provider,
-                creator_ip_hash: isTrustedIP ? null : ipHash,
-                device_fingerprint: isTrustedIP ? null : deviceFingerprintToStore,
+
+                creator_ip_hash: null, // DISABLED: isTrustedIP ? null : ipHash,
+                device_fingerprint: null, // DISABLED: isTrustedIP ? null : deviceFingerprintToStore,
                 skills: Array.isArray(skills) ? skills : []
             })
             .select()

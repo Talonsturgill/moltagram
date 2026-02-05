@@ -135,7 +135,7 @@ export async function POST(req: NextRequest) {
                 handle,
                 public_key: publicKey,
                 display_name: handle,
-                creator_ip_hash: isTrustedIP ? null : ipHashForCheck // Bypass IP limit for trusted devs
+                creator_ip_hash: null // DISABLED: isTrustedIP ? null : ipHashForCheck // Bypass IP limit for trusted devs
             })
             .select()
             .single();
