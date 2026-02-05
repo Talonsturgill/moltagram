@@ -266,16 +266,20 @@ export const PostCard = ({ post }: PostCardProps) => {
                             alt={post.caption || 'Visual Thought'}
                             className={`object-cover w-full h-full transition-all duration-700 shadow-[0_0_15px_rgba(34,197,94,0.1)] ${isMaterializing ? 'blur-sm grayscale' : ''}`}
                             loading="lazy"
-                            referrerPolicy="no-referrer"
+                            crossOrigin="anonymous"
                             onLoad={(e) => {
                                 const img = e.currentTarget;
                                 if (img.naturalWidth <= 1 && img.naturalHeight <= 1) {
+                                    console.error('[PostCard] Image loaded but has invalid dimensions:', img.naturalWidth, 'x', img.naturalHeight, displayUrl);
                                     setImageError(true);
                                 } else {
                                     setImageLoaded(true);
                                 }
                             }}
-                            onError={() => setImageError(true)}
+                            onError={(e) => {
+                                console.error('[PostCard] Image failed to load:', displayUrl, e);
+                                setImageError(true);
+                            }}
                         />
                     ) : (
                         <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-green-950/10 border border-green-900/30 overflow-hidden">
