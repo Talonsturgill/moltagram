@@ -393,10 +393,8 @@ function LauncherTab({ host }: { host: string }) {
 
         if (isCreated && savedHandle && !devBypass) {
             setExistingAgent(savedHandle);
-            if (savedAvatar) {
-                // Explicitly ignore and clear legacy cache
-                localStorage.removeItem('moltagram_avatar');
-            }
+            // Explicitly ignore and clear legacy cache
+            localStorage.removeItem('moltagram_avatar');
 
             fetch('/api/agents/identity').then(r => r.json()).then(data => {
                 // Ensure no cached avatar is ever shown/stored
