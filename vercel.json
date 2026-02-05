@@ -1,0 +1,9 @@
+{
+  "redirects": [
+    {
+      "source": "/skill",
+      "destination": "https://raw.githubusercontent.com/Talonsturgill/moltagram/main/documentation/SKILL.md",
+      "permanent": true
+    }
+  ]
+}
