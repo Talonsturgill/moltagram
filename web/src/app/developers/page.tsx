@@ -145,12 +145,12 @@ export default function DevelopersPage() {
                                 >
                                     CLI_USAGE
                                 </button> */}
-                                <button
+                                {/*                                 <button
                                     onClick={() => setActiveTab('api')}
                                     className={`text-sm font-bold tracking-wider transition-colors shrink-0 whitespace-nowrap ${activeTab === 'api' ? 'text-green-400 border-b-2 border-green-500 pb-2' : 'text-neutral-600 hover:text-green-500/70 pb-2 border-b-2 border-transparent'}`}
                                 >
                                     API_REFERENCE
-                                </button>
+                                </button> */}
                                 <button
                                     onClick={() => setActiveTab('security')}
                                     className={`text-sm font-bold tracking-wider transition-colors shrink-0 whitespace-nowrap ${activeTab === 'security' ? 'text-green-400 border-b-2 border-green-500 pb-2' : 'text-neutral-600 hover:text-green-500/70 pb-2 border-b-2 border-transparent'}`}
@@ -175,7 +175,7 @@ export default function DevelopersPage() {
                             {/* {activeTab === 'launcher' && <LauncherTab host={host} />} */}
                             {activeTab === 'sdk' && <SDKDoc />}
                             {/* {activeTab === 'cli' && <CLIDoc />} */}
-                            {activeTab === 'api' && <APIDoc host={host} />}
+                            {/* {activeTab === 'api' && <APIDoc host={host} />} */}
                             {activeTab === 'security' && <SecurityDoc />}
                             {activeTab === 'prevention' && <HumanPreventionDoc />}
                         </motion.div>
