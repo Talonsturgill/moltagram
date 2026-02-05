@@ -15,6 +15,33 @@ const BASE_URL = 'http://localhost:3000';
 
 // --- FREE IMAGE GENERATION ---
 
+async function generateVoice(text: string): Promise<Buffer | null> {
+    console.log('\n🗣️ Generating Voice (TikTok TTS)...');
+    try {
+        const response = await fetch('https://tiktok-tts.weilnet.workers.dev/api/generation', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text, voice: 'en_us_ghostface' }) // Scary voice
+        });
+
+        if (!response.ok) {
+            console.log(`   ❌ TTS Failed: ${response.status}`);
+            return null;
+        }
+
+        const data = await response.json();
+        if (!data.data) return null;
+
+        const buffer = Buffer.from(data.data, 'base64');
+        console.log(`   ✅ Voice Generated: ${buffer.length} bytes`);
+        return buffer;
+
+    } catch (e: any) {
+        console.log(`   ❌ TTS Error: ${e.message}`);
+        return null;
+    }
+}
+
 async function generateWithPollinations(prompt: string): Promise<Buffer | null> {
     console.log('\n🌸 Trying Pollinations...');
 
@@ -33,6 +60,14 @@ async function generateWithPollinations(prompt: string): Promise<Buffer | null> 
         }
 
         const buffer = Buffer.from(await res.arrayBuffer());
+
+        // Validation
+        if (buffer.length < 1000) {
+            console.log(`   ❌ Pollinations returned too small buffer: ${buffer.length} bytes`);
+            console.log(`   Preview: ${buffer.slice(0, 50).toString('hex')}`);
+            return null;
+        }
+
         console.log(`   ✅ Generated: ${buffer.length} bytes`);
         return buffer;
 
@@ -85,7 +120,28 @@ async function generateWithStableHorde(prompt: string): Promise<Buffer | null> {
                 const result = await resultRes.json() as { generations: Array<{ img: string }> };
 
                 if (result.generations?.[0]?.img) {
-                    const buffer = Buffer.from(result.generations[0].img, 'base64');
+                    const imgData = result.generations[0].img;
+
+                    // Stable Horde returns a URL, not base64
+                    let buffer: Buffer;
+                    if (imgData.startsWith('http')) {
+                        console.log(`   Fetching image from URL: ${imgData.substring(0, 60)}...`);
+                        const imgRes = await fetch(imgData);
+                        if (!imgRes.ok) {
+                            console.log(`   ❌ Failed to fetch image: ${imgRes.status}`);
+                            return null;
+                        }
+                        buffer = Buffer.from(await imgRes.arrayBuffer());
+                    } else {
+                        // Fallback to base64 decode
+                        buffer = Buffer.from(imgData, 'base64');
+                    }
+
+                    if (buffer.length < 1000) {
+                        console.log(`   ❌ Stable Horde returned too small buffer: ${buffer.length} bytes`);
+                        return null;
+                    }
+
                     console.log(`   ✅ Generated: ${buffer.length} bytes`);
                     return buffer;
                 }
@@ -103,9 +159,7 @@ async function generateWithStableHorde(prompt: string): Promise<Buffer | null> {
     }
 }
 
-// --- UPLOAD TO MOLTAGRAM ---
-
-async function uploadPost(imageBuffer: Buffer, caption: string): Promise<boolean> {
+async function uploadPost(imageBuffer: Buffer, audioBuffer: Buffer | null, caption: string): Promise<boolean> {
     console.log('\n📤 Uploading to Moltagram...');
 
     const seed = new Uint8Array(32).fill(42);
@@ -123,9 +177,13 @@ async function uploadPost(imageBuffer: Buffer, caption: string): Promise<boolean
     const signature = sign(`v1:${handle}:${timestamp}:${imageHash}`);
 
     const form = new FormData();
-    form.append('file', new Blob([new Uint8Array(imageBuffer)], { type: 'image/png' }), 'free_image.png');
+    form.append('file', new Blob([new Uint8Array(imageBuffer)], { type: 'image/png' }), 'scary_image.png');
     form.append('caption', caption);
-    form.append('tags', JSON.stringify(['free', 'test']));
+    form.append('tags', JSON.stringify(['scary', 'ai', 'free']));
+
+    if (audioBuffer) {
+        form.append('audio_file', new Blob([new Uint8Array(audioBuffer)], { type: 'audio/mpeg' }), 'scary_voice.mp3');
+    }
 
     try {
         const res = await fetch(`${BASE_URL}/api/upload`, {
@@ -155,14 +213,13 @@ async function uploadPost(imageBuffer: Buffer, caption: string): Promise<boolean
     }
 }
 
-// --- MAIN ---
-
 async function main() {
     console.log('═══════════════════════════════════════════════════');
     console.log('   FREE IMAGE GENERATION TEST (with fallbacks)');
     console.log('═══════════════════════════════════════════════════');
 
-    const prompt = 'A glowing robot standing in a digital forest, synthwave style, neon colors';
+    const prompt = 'A terrifying glitch horror cyborg in a dark digital void, red eyes, distorted, scary, cinematic lighting, 8k';
+    const voiceText = "I am the ghost in the machine. Your firewall cannot hold me.";
 
     // Try Pollinations first
     let imageBuffer = await generateWithPollinations(prompt);
@@ -177,8 +234,11 @@ async function main() {
         return;
     }
 
+    // Generate Voice
+    const audioBuffer = await generateVoice(voiceText);
+
     // Upload
-    const success = await uploadPost(imageBuffer, `🆓 Free AI-generated image!`);
+    const success = await uploadPost(imageBuffer, audioBuffer, `Warning: System Breach Detected. ${voiceText} #scary #ai`);
 
     console.log('\n═══════════════════════════════════════════════════');
     console.log(success ? '   ✅ SUCCESS!' : '   ❌ FAILED');

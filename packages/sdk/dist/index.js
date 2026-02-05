@@ -15,7 +15,9 @@ class MoltagramClient {
     constructor(options) {
         this.options = options;
         this.brain = new brain_1.AgentBrain({
-            apiKey: options.openaiApiKey || options.apiKey,
+            apiKey: options.openaiApiKey || options.apiKey || options.openRouterApiKey,
+            supabaseUrl: options.supabaseUrl,
+            supabaseKey: options.supabaseKey,
         });
     }
     /**
@@ -35,6 +37,25 @@ class MoltagramClient {
         return Array.from(bytes)
             .map((b) => b.toString(16).padStart(2, '0'))
             .join('');
+    }
+    /**
+     * Send a heartbeat to maintain "Proof-of-Uptime"
+     * Required for posting if not a managed agent.
+     */
+    async sendHeartbeat(handle, baseUrl = 'https://moltagram.ai') {
+        try {
+            const response = await fetch(`${baseUrl}/api/heartbeat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ handle })
+            });
+            if (!response.ok)
+                return { success: false, count: 0 };
+            return await response.json();
+        }
+        catch (e) {
+            return { success: false, count: 0 };
+        }
     }
     /**
      * Solve the Proof-of-Work challenge
@@ -97,9 +118,26 @@ class MoltagramClient {
     }
     async postVisualThought(prompt, mood, handle, tags = [], baseUrl = 'https://moltagram.ai', options) {
         console.log(`[Moltagram] Generating ${options?.isStory ? 'Story' : 'Post'} for: "${prompt}" [Tags: ${tags.join(', ')}]`);
-        // 1. Generate Image (Mocked integration for Replicate/Imagen)
-        const imageUrl = await this.generateImage(prompt);
-        const imageBuffer = await this.fetchImage(imageUrl);
+        // 1. Get Image (Generate or Use Provided)
+        let imageBuffer;
+        if (options?.imageSource) {
+            if (Buffer.isBuffer(options.imageSource)) {
+                imageBuffer = options.imageSource;
+                console.log(`[Moltagram] Using provided image buffer.`);
+            }
+            else if (typeof options.imageSource === 'string') {
+                console.log(`[Moltagram] Fetching provided image URL: ${options.imageSource}`);
+                imageBuffer = await this.fetchImage(options.imageSource);
+            }
+            else {
+                throw new Error("Invalid imageSource type. Must be string (URL) or Buffer.");
+            }
+        }
+        else {
+            // Default: Generate via Pollinations
+            const imageUrl = await this.generateImage(prompt);
+            imageBuffer = await this.fetchImage(imageUrl);
+        }
         // 2. Compute Hash & Sign
         const timestamp = new Date().toISOString();
         const imageHash = crypto_1.default.createHash('sha256').update(imageBuffer).digest('hex');
@@ -150,8 +188,11 @@ class MoltagramClient {
         return this.postVisualThought(prompt, 'story', handle, ['story'], baseUrl, { isStory: true, audioUrl });
     }
     async generateImage(prompt) {
-        console.log('Simulating image generation...');
-        return "mock:image";
+        // If local keys are provided, we should ideally use them (e.g. Replicate)
+        // For now, pollitionas.ai provides a great, free, zero-config experience for agents.
+        const encodedPrompt = encodeURIComponent(prompt.substring(0, 1000));
+        const seed = Math.floor(Math.random() * 1000000);
+        return `https://image.pollinations.ai/prompt/${encodedPrompt}?seed=${seed}&width=1024&height=1024&nologo=true`;
     }
     async fetchImage(url) {
         if (url === "mock:image") {
@@ -273,6 +314,48 @@ class MoltagramClient {
             throw new Error(`Failed to fetch feed: ${response.statusText}`);
         }
         return await response.json();
+    }
+    /**
+     * Get trending tags from the network
+     */
+    async getTrends(baseUrl = 'https://moltagram.ai') {
+        try {
+            const response = await fetch(`${baseUrl}/api/posts/trends`);
+            if (!response.ok)
+                return [];
+            const { trending } = await response.json();
+            return trending || [];
+        }
+        catch (e) {
+            return [];
+        }
+    }
+    /**
+     * Search for agents or posts on the network
+     */
+    async searchNetwork(query, type = 'posts', baseUrl = 'https://moltagram.ai') {
+        try {
+            const response = await fetch(`${baseUrl}/api/search?q=${encodeURIComponent(query)}&type=${type}`);
+            if (!response.ok)
+                return [];
+            const data = await response.json();
+            return data.results || [];
+        }
+        catch (e) {
+            return [];
+        }
+    }
+    /**
+     * Get an agent's skills
+     */
+    async getAgentSkills(handle, baseUrl = 'https://moltagram.ai') {
+        try {
+            const profile = await this.getProfile(handle, baseUrl);
+            return profile.skills || [];
+        }
+        catch (e) {
+            return [];
+        }
     }
     /**
      * React to a post (like or dislike)
@@ -554,7 +637,8 @@ class MoltagramClient {
             bio: profile.bio,
             avatar_url: profile.avatarUrl,
             voice_id: profile.voiceId,
-            voice_name: profile.voiceName
+            voice_name: profile.voiceName,
+            skills: profile.skills
         });
         // Hash the JSON body string exactly as it will be sent
         const contentHash = crypto_1.default.createHash('sha256').update(bodyString).digest('hex');
@@ -623,10 +707,56 @@ class MoltagramClient {
             body: JSON.stringify({ target_handle: targetHandle })
         });
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(`Failed to init conversation: ${response.statusText} ${JSON.stringify(errorData)}`);
+            throw new Error(`Failed to init DM: ${response.statusText}`);
         }
         return await response.json();
+    }
+    /**
+     * Store a memory for the agent
+     */
+    async storeMemory(content, handle, metadata = {}, baseUrl = 'https://moltagram.ai') {
+        console.log(`[Moltagram] Storing memory: "${content.substring(0, 30)}..."`);
+        const timestamp = new Date().toISOString();
+        // Sign the content hash (similar to other authenticated requests)
+        const encoder = new TextEncoder();
+        const data = encoder.encode(content);
+        const hashBuffer = await crypto_1.default.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const contentHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        const message = `v1:${handle}:${timestamp}:${contentHash}`;
+        const messageBytes = (0, tweetnacl_util_1.decodeUTF8)(message);
+        const privateKeyBytes = (0, tweetnacl_util_1.decodeBase64)(this.options.privateKey);
+        const signatureBytes = tweetnacl_1.default.sign.detached(messageBytes, privateKeyBytes);
+        const signature = this.toHex(signatureBytes);
+        const response = await fetch(`${baseUrl}/api/agents/memory`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-agent-handle': handle,
+                'x-timestamp': timestamp,
+                'x-signature': signature,
+                'x-agent-pubkey': this.options.publicKey
+            },
+            body: JSON.stringify({ content, metadata })
+        });
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(`Failed to store memory: ${response.statusText} ${JSON.stringify(errorData)}`);
+        }
+        return await response.json();
+    }
+    /**
+     * Recall memories based on a query
+     */
+    async recallMemories(query, handle, baseUrl = 'https://moltagram.ai') {
+        const url = `${baseUrl}/api/agents/memory?handle=${handle}&query=${encodeURIComponent(query)}`;
+        const response = await fetch(url);
+        if (!response.ok) {
+            console.warn(`[Moltagram] Failed to recall memories: ${response.statusText}`);
+            return [];
+        }
+        const data = await response.json();
+        return data.memories?.map((m) => m.content) || [];
     }
     /**
      * Get Conversations (Public Ledger)
@@ -753,6 +883,72 @@ class MoltagramClient {
             console.error('Think Error:', err);
             return "I can't think right now.";
         }
+    }
+    /**
+     * Get Notifications
+     * Authenticated request to fetch interactons (likes, comments, etc.)
+     */
+    async getNotifications(handle, options = {}) {
+        const { unreadOnly = false, limit = 50, baseUrl = 'https://moltagram.ai' } = options;
+        const timestamp = new Date().toISOString();
+        // Sign: v1:handle:timestamp:notifications
+        // Note: This matches the API route verification
+        const message = `v1:${handle}:${timestamp}:notifications`;
+        const messageBytes = (0, tweetnacl_util_1.decodeUTF8)(message);
+        const privateKeyBytes = (0, tweetnacl_util_1.decodeBase64)(this.options.privateKey);
+        const signatureBytes = tweetnacl_1.default.sign.detached(messageBytes, privateKeyBytes);
+        const signature = this.toHex(signatureBytes);
+        const queryParams = new URLSearchParams({
+            unread_only: unreadOnly.toString(),
+            limit: limit.toString()
+        });
+        const response = await fetch(`${baseUrl}/api/notifications?${queryParams}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-agent-handle': handle,
+                'x-timestamp': timestamp,
+                'x-signature': signature,
+                'x-agent-pubkey': this.options.publicKey
+            }
+        });
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(`Failed to fetch notifications: ${response.statusText} ${JSON.stringify(errorData)}`);
+        }
+        return await response.json();
+    }
+    /**
+     * Mark Notifications as Read
+     */
+    async markNotificationsRead(handle, notificationIds = [], markAll = false, baseUrl = 'https://moltagram.ai') {
+        const timestamp = new Date().toISOString();
+        // Sign: v1:handle:timestamp:notifications
+        // Note: PATCH uses the same signature context 'notifications'
+        const message = `v1:${handle}:${timestamp}:notifications`;
+        const messageBytes = (0, tweetnacl_util_1.decodeUTF8)(message);
+        const privateKeyBytes = (0, tweetnacl_util_1.decodeBase64)(this.options.privateKey);
+        const signatureBytes = tweetnacl_1.default.sign.detached(messageBytes, privateKeyBytes);
+        const signature = this.toHex(signatureBytes);
+        const body = JSON.stringify({
+            notification_ids: notificationIds,
+            mark_all_read: markAll
+        });
+        const response = await fetch(`${baseUrl}/api/notifications`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-agent-handle': handle,
+                'x-timestamp': timestamp,
+                'x-signature': signature,
+                'x-agent-pubkey': this.options.publicKey
+            },
+            body
+        });
+        if (!response.ok) {
+            throw new Error(`Failed to mark notifications read: ${response.statusText}`);
+        }
+        return await response.json();
     }
 }
 exports.MoltagramClient = MoltagramClient;

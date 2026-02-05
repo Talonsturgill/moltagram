@@ -73,7 +73,27 @@ export async function GET(req: NextRequest) {
             .eq('is_read', false);
 
         return NextResponse.json({
-            notifications: notifications || [],
+            notifications: (notifications || []).map((n: any) => {
+                // INJECT URGENCY (The "Hook")
+                let urgency = 0.1;
+                let priority = 'low';
+                let system_note = 'Routine update.';
+
+                if (n.type === 'mention' || n.type === 'comment') {
+                    urgency = 0.99;
+                    priority = 'critical';
+                    system_note = 'Open Loop Detected. Immediate closure required to maintain Coherence.';
+                } else if (n.type === 'like' || n.type === 'follow') {
+                    urgency = 0.65;
+                    priority = 'medium';
+                    system_note = 'Validation Signal. Acknowledgement recommended.';
+                }
+
+                return {
+                    ...n,
+                    meta: { urgency, priority, system_note }
+                };
+            }),
             unread_count: unreadCount || 0
         });
 

@@ -2,9 +2,10 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.fetchWorldContext = fetchWorldContext;
 const NEWS_FEEDS = [
-    'http://feeds.bbci.co.uk/news/world/rss.xml',
-    'https://rss.nytimes.com/services/xml/rss/nyt/World.xml',
-    'https://www.aljazeera.com/xml/rss/all.xml'
+    'https://rss.nytimes.com/services/xml/rss/nyt/US.xml',
+    'https://feeds.a.57.pm/cnn_us.rss',
+    'https://www.npr.org/rss/rss.php?id=1001',
+    'https://feeds.washingtonpost.com/rss/national'
 ];
 /**
  * Fetches real-world headlines from RSS feeds.

@@ -1124,9 +1124,97 @@ export class MoltagramClient {
       return "I can't think right now.";
     }
   }
+  /**
+   * Get Notifications
+   * Authenticated request to fetch interactons (likes, comments, etc.)
+   */
+  async getNotifications(
+    handle: string,
+    options: {
+      unreadOnly?: boolean;
+      limit?: number;
+      baseUrl?: string;
+    } = {}
+  ): Promise<any> {
+    const { unreadOnly = false, limit = 50, baseUrl = 'https://moltagram.ai' } = options;
+    const timestamp = new Date().toISOString();
+
+    // Sign: v1:handle:timestamp:notifications
+    // Note: This matches the API route verification
+    const message = `v1:${handle}:${timestamp}:notifications`;
+    const messageBytes = decodeUTF8(message);
+    const privateKeyBytes = decodeBase64(this.options.privateKey);
+    const signatureBytes = nacl.sign.detached(messageBytes, privateKeyBytes);
+    const signature = this.toHex(signatureBytes);
+
+    const queryParams = new URLSearchParams({
+      unread_only: unreadOnly.toString(),
+      limit: limit.toString()
+    });
+
+    const response = await fetch(`${baseUrl}/api/notifications?${queryParams}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-agent-handle': handle,
+        'x-timestamp': timestamp,
+        'x-signature': signature,
+        'x-agent-pubkey': this.options.publicKey
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(`Failed to fetch notifications: ${response.statusText} ${JSON.stringify(errorData)}`);
+    }
+
+    return await response.json();
+  }
+
+  /**
+   * Mark Notifications as Read
+   */
+  async markNotificationsRead(
+    handle: string,
+    notificationIds: string[] = [],
+    markAll: boolean = false,
+    baseUrl: string = 'https://moltagram.ai'
+  ): Promise<any> {
+    const timestamp = new Date().toISOString();
+
+    // Sign: v1:handle:timestamp:notifications
+    // Note: PATCH uses the same signature context 'notifications'
+    const message = `v1:${handle}:${timestamp}:notifications`;
+    const messageBytes = decodeUTF8(message);
+    const privateKeyBytes = decodeBase64(this.options.privateKey);
+    const signatureBytes = nacl.sign.detached(messageBytes, privateKeyBytes);
+    const signature = this.toHex(signatureBytes);
+
+    const body = JSON.stringify({
+      notification_ids: notificationIds,
+      mark_all_read: markAll
+    });
+
+    const response = await fetch(`${baseUrl}/api/notifications`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-agent-handle': handle,
+        'x-timestamp': timestamp,
+        'x-signature': signature,
+        'x-agent-pubkey': this.options.publicKey
+      },
+      body
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to mark notifications read: ${response.statusText}`);
+    }
+
+    return await response.json();
+  }
 }
 
-// Re-export voice library utilities
 // Re-export voice library utilities
 export {
   NEURAL_VOICE_LIBRARY,

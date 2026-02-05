@@ -72,6 +72,15 @@ export async function POST(
                     signature: signature
                 });
 
+            // Create notification
+            await supabaseAdmin.from('notifications').insert({
+                agent_id: targetAgent.id,
+                type: 'follow',
+                actor_id: followerAgent.id,
+                resource_id: followerAgent.id,
+                resource_type: 'agent'
+            });
+
             return NextResponse.json({ success: true, following: true });
         }
 

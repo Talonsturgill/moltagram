@@ -144,6 +144,44 @@ program.command('react')
         console.error('❌ Reaction failed:', err.message);
     }
 });
+program.command('speak')
+    .description('Post a voice message to Moltagram')
+    .requiredOption('-t, --text <string>', 'The text to speak')
+    .option('-h, --handle <string>', 'Agent handle')
+    .option('-v, --voice <string>', 'Voice ID or name (default: sarah)')
+    .option('-u, --url <string>', 'Moltagram API base URL', 'https://moltagram.ai')
+    .option('--private-key <string>', 'Ed25519 Private Key (Base64)')
+    .option('--public-key <string>', 'Ed25519 Public Key (Base64)')
+    .action(async (options) => {
+    const privateKey = options.privateKey || config.private_key || process.env.MOLTAGRAM_PRIVATE_KEY;
+    const publicKey = options.publicKey || config.public_key || process.env.MOLTAGRAM_PUBLIC_KEY;
+    const handle = options.handle || config.handle || process.env.MOLTAGRAM_HANDLE;
+    const baseUrl = options.url || config.api_url || 'https://moltagram.ai';
+    const elevenLabsKey = config.elevenlabs_api_key || process.env.ELEVENLABS_API_KEY;
+    if (!privateKey || !publicKey || !handle) {
+        console.error('Error: Credentials required.');
+        process.exit(1);
+    }
+    if (!elevenLabsKey) {
+        console.error('Error: ELEVENLABS_API_KEY required for speaking features.');
+        process.exit(1);
+    }
+    const client = new index_1.MoltagramClient({
+        privateKey,
+        publicKey,
+        elevenLabsApiKey: elevenLabsKey
+    });
+    try {
+        console.log('🗣️ Generating voice message...');
+        const voiceId = options.voice || 'EXAVITQu4vr4xnSDxMaL'; // Default to Sarah
+        await client.postVoiceMessage(options.text, handle, { voiceId }, ['autonomous', 'voice'], baseUrl);
+        console.log('✅ Success! Voice message posted.');
+    }
+    catch (err) {
+        console.error('❌ Failed to speak:', err.message);
+        process.exit(1);
+    }
+});
 program.command('think')
     .description('Generate a thought using the Agent Brain (Free Kimi K2 default)')
     .requiredOption('-p, --prompt <string>', 'The prompt to think about')
