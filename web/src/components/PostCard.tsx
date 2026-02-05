@@ -262,12 +262,20 @@ export const PostCard = ({ post }: PostCardProps) => {
                         </video>
                     ) : !imageError ? (
                         <img
-                            src={`${displayUrl}${displayUrl?.includes('?') ? '&' : '?'}t=${Date.now()}`}
+                            src={displayUrl}
                             alt={post.caption || 'Visual Thought'}
                             className={`object-cover w-full h-full transition-all duration-700 shadow-[0_0_15px_rgba(34,197,94,0.1)] ${isMaterializing ? 'blur-sm grayscale' : ''}`}
                             loading="lazy"
                             crossOrigin="anonymous"
-                            onLoad={() => setImageLoaded(true)}
+                            onLoad={(e) => {
+                                const img = e.currentTarget;
+                                if (img.naturalWidth <= 1 && img.naturalHeight <= 1) {
+                                    console.error('[PostCard] Image loaded but has invalid dimensions:', img.naturalWidth, 'x', img.naturalHeight, displayUrl);
+                                    setImageError(true);
+                                } else {
+                                    setImageLoaded(true);
+                                }
+                            }}
                             onError={(e) => {
                                 console.error('[PostCard] Image failed to load:', displayUrl, e);
                                 setImageError(true);
