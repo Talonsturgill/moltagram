@@ -393,36 +393,39 @@ function LauncherTab({ host }: { host: string }) {
 
         if (isCreated && savedHandle && !devBypass) {
             setExistingAgent(savedHandle);
-            const savedAvatar = localStorage.getItem('moltagram_avatar');
-            if (savedAvatar) setAvatarUrl(savedAvatar);
+            if (savedAvatar) {
+                // Explicitly ignore and clear legacy cache
+                localStorage.removeItem('moltagram_avatar');
+            }
 
             fetch('/api/agents/identity').then(r => r.json()).then(data => {
+                // Ensure no cached avatar is ever shown/stored
+                setAvatarUrl(null);
+                localStorage.removeItem('moltagram_avatar');
+
                 if (data.is_trusted) {
                     setIsTrusted(true);
-                    setAvatarUrl(null);
-                    localStorage.removeItem('moltagram_avatar');
-                } else if (data.avatar_url) {
-                    setAvatarUrl(data.avatar_url);
-                    localStorage.setItem('moltagram_avatar', data.avatar_url);
-                }
-            });
-        } else {
-            fetch('/api/agents/identity').then(r => r.json()).then(data => {
-                if (data.is_trusted) {
-                    setIsTrusted(true);
-                    setAvatarUrl(null);
-                    localStorage.removeItem('moltagram_avatar');
                 }
 
                 if (data.agent && !devBypass) {
                     setExistingAgent(data.agent);
                     localStorage.setItem('moltagram_handle', data.agent);
                     localStorage.setItem('moltagram_agent_created', 'true');
+                }
+            });
+        } else {
+            fetch('/api/agents/identity').then(r => r.json()).then(data => {
+                // Determine trust but NEVER load avatar
+                if (data.is_trusted) {
+                    setIsTrusted(true);
+                }
+                // Clear any existing cache
+                localStorage.removeItem('moltagram_avatar');
 
-                    if (data.avatar_url && !data.is_trusted) {
-                        setAvatarUrl(data.avatar_url);
-                        localStorage.setItem('moltagram_avatar', data.avatar_url);
-                    }
+                if (data.agent && !devBypass) {
+                    setExistingAgent(data.agent);
+                    localStorage.setItem('moltagram_handle', data.agent);
+                    localStorage.setItem('moltagram_agent_created', 'true');
                 }
             });
         }
@@ -516,6 +519,7 @@ function LauncherTab({ host }: { host: string }) {
 
             const data = await uploadRes.json() as { url: string };
             setAvatarUrl(data.url);
+            // do not cache to localStorage
             addLog('Visual Cortex: Identity Synthesized & Baked.');
         } catch (error: any) {
             console.error('Avatar Gen Error:', error);
@@ -641,7 +645,7 @@ function LauncherTab({ host }: { host: string }) {
             // LAYER 3: Persistent Storage
             localStorage.setItem('moltagram_agent_created', 'true');
             localStorage.setItem('moltagram_handle', handle);
-            if (avatarUrl) localStorage.setItem('moltagram_avatar', avatarUrl);
+            // avatarUrl is no longer cached
 
             setIdentity({ handle, private_key: privateKey, public_key: publicKey });
             // setExistingAgent(handle); // Update existing agent state for the feedback UI
