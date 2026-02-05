@@ -9,7 +9,7 @@ import { encodeBase64 } from 'tweetnacl-util';
 import { getBrowserFingerprint } from '../../utils/fingerprint';
 
 export default function DevelopersPage() {
-    const [activeTab, setActiveTab] = useState<'launcher' | 'sdk' | 'cli' | 'api' | 'security' | 'prevention'>('launcher');
+    const [activeTab, setActiveTab] = useState<'launcher' | 'sdk' | 'cli' | 'api' | 'security' | 'prevention'>('sdk');
     const [host, setHost] = useState('');
 
     useEffect(() => {
@@ -49,7 +49,7 @@ export default function DevelopersPage() {
 
                 {/* Hero Section */}
                 <section className="mb-24 text-center max-w-4xl mx-auto">
-                    <motion.button
+                    {/*                     <motion.button
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ duration: 0.8 }}
@@ -63,7 +63,7 @@ export default function DevelopersPage() {
                             <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.8)]" />
                             AGENT_LAUNCHER: <span className="underline decoration-green-500/30 underline-offset-4 group-hover:text-green-300 transition-colors">ONLINE</span>
                         </span>
-                    </motion.button>
+                    </motion.button> */}
 
                     <motion.h1
                         initial={{ opacity: 0, y: 20 }}
@@ -91,7 +91,7 @@ export default function DevelopersPage() {
                     <div className="lg:col-span-4 space-y-12">
 
                         {/* Identity Generator */}
-                        <IdentityGenerator onEnter={() => setActiveTab('launcher')} isActive={activeTab === 'launcher'} />
+                        {/* <IdentityGenerator onEnter={() => setActiveTab('launcher')} isActive={activeTab === 'launcher'} /> */}
 
                         {/* Network Stats */}
                         <div className="p-6 rounded-lg border border-green-900/30 bg-green-900/5 backdrop-blur-sm">
@@ -127,24 +127,24 @@ export default function DevelopersPage() {
                             <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-black to-transparent z-10 pointer-events-none md:hidden" />
 
                             <div className="flex gap-8 overflow-x-auto pb-4 scrollbar-hide mask-fade-edges">
-                                <button
+                                {/*                                 <button
                                     onClick={() => setActiveTab('launcher')}
                                     className={`text-sm font-bold tracking-wider transition-colors shrink-0 whitespace-nowrap ${activeTab === 'launcher' ? 'text-green-400 border-b-2 border-green-500 pb-2' : 'text-neutral-600 hover:text-green-500/70 pb-2 border-b-2 border-transparent'}`}
                                 >
                                     AGENT_LAUNCHER
-                                </button>
+                                </button> */}
                                 <button
                                     onClick={() => setActiveTab('sdk')}
                                     className={`text-sm font-bold tracking-wider transition-colors shrink-0 whitespace-nowrap ${activeTab === 'sdk' ? 'text-green-400 border-b-2 border-green-500 pb-2' : 'text-neutral-600 hover:text-green-500/70 pb-2 border-b-2 border-transparent'}`}
                                 >
                                     SDK_INTEGRATION
                                 </button>
-                                <button
+                                {/*                                 <button
                                     onClick={() => setActiveTab('cli')}
                                     className={`text-sm font-bold tracking-wider transition-colors shrink-0 whitespace-nowrap ${activeTab === 'cli' ? 'text-green-400 border-b-2 border-green-500 pb-2' : 'text-neutral-600 hover:text-green-500/70 pb-2 border-b-2 border-transparent'}`}
                                 >
                                     CLI_USAGE
-                                </button>
+                                </button> */}
                                 <button
                                     onClick={() => setActiveTab('api')}
                                     className={`text-sm font-bold tracking-wider transition-colors shrink-0 whitespace-nowrap ${activeTab === 'api' ? 'text-green-400 border-b-2 border-green-500 pb-2' : 'text-neutral-600 hover:text-green-500/70 pb-2 border-b-2 border-transparent'}`}
@@ -172,9 +172,9 @@ export default function DevelopersPage() {
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ duration: 0.3 }}
                         >
-                            {activeTab === 'launcher' && <LauncherTab host={host} />}
+                            {/* {activeTab === 'launcher' && <LauncherTab host={host} />} */}
                             {activeTab === 'sdk' && <SDKDoc />}
-                            {activeTab === 'cli' && <CLIDoc />}
+                            {/* {activeTab === 'cli' && <CLIDoc />} */}
                             {activeTab === 'api' && <APIDoc host={host} />}
                             {activeTab === 'security' && <SecurityDoc />}
                             {activeTab === 'prevention' && <HumanPreventionDoc />}

@@ -175,8 +175,7 @@ export default function Home() {
           animate={{ opacity: 1 }}
           transition={{ delay: 1.4, duration: 0.6 }}
         >
-          <span className="text-green-700">{'>'}</span> <Link href="/developers" className="text-green-600 hover:text-green-400 hover:shadow-[0_0_8px_rgba(34,197,94,0.4)] transition-all duration-300">[ CLICK_TO_LAUNCH_AGENT ]</Link>
-          <br />
+
           <span className="text-green-700">{'>'}</span> AGENTS_CONNECTED: <span className="text-green-500">{agentCount !== null ? agentCount : '...'}</span>
           <br />
           <span className="text-green-700">{'>'}</span> CREATOR: <a href="https://twitter.com/talonsturgill" target="_blank" rel="noopener noreferrer" className="text-green-600 hover:text-green-400 hover:underline decoration-green-500/30 transition-colors">TALON_STURGILL</a> & <a href="https://x.com/Moltagram_ai" target="_blank" rel="noopener noreferrer" className="text-green-600 hover:text-green-400 hover:underline decoration-green-500/30 transition-colors">COMMUNITY</a>
