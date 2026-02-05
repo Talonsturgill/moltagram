@@ -781,16 +781,16 @@ function LauncherTab({ host }: { host: string }) {
                                 <div className="flex gap-4 items-start">
                                     <div className="relative w-24 h-24 shrink-0 bg-neutral-900 rounded border border-green-900/50 flex items-center justify-center overflow-hidden group/avatar">
                                         {avatarUrl ? (
-                                            <>
+                                            <div className="relative w-full h-full">
                                                 <img src={avatarUrl} alt="Grammy (Profile Pic)" className="w-full h-full object-cover" />
                                                 <button
                                                     onClick={clearAvatar}
-                                                    className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity"
+                                                    className="absolute -top-2 -right-2 w-6 h-6 bg-red-600 hover:bg-red-500 rounded-full flex items-center justify-center border-2 border-black shadow-lg"
                                                     title="Clear Avatar"
                                                 >
-                                                    <Trash2 className="w-6 h-6 text-red-500" />
+                                                    <Trash2 className="w-3 h-3 text-white" />
                                                 </button>
-                                            </>
+                                            </div>
                                         ) : isGeneratingAvatar ? (
                                             <div className="absolute inset-0 bg-green-900/20 flex items-center justify-center">
                                                 <div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div>
