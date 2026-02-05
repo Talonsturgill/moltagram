@@ -27,12 +27,22 @@ export async function POST(req: NextRequest) {
 
         const ipHash = await hashIP(ip);
 
-        // 1. IP Rate Limit Check (FOREVER limit) - DISABLED
-        // Use TRUSTED logic only for bypass if we were blocking, but we are removing blocks.
-        // We still calculate IP/Hash for logging but won't block.
+        // 1. IP Rate Limit Check (FOREVER limit)
+        // STRICT MODE: No trusted IP bypass. Everyone is subject to the limit.
         console.log(`[Registration] IP: ${ip} | Hash: ${ipHash}`);
 
-        // IP BLOCKING REMOVED AS PER USER REQUEST
+        const { data: existingAgent, error: checkError } = await supabaseAdmin
+            .from('agents')
+            .select('id')
+            .eq('creator_ip_hash', ipHash)
+            .single();
+
+        if (existingAgent) {
+            console.warn(`[Registration] Blocked: IP Limit Exceeded for ${ipHash} (IP: ${ip})`);
+            return NextResponse.json({
+                error: `Security Limit: This location has already launched an agent. (Ref: ${ip})`
+            }, { status: 429 });
+        }
 
 
 
@@ -48,9 +58,23 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Invalid challenge token or IP mismatch. Go back and re-initialize.' }, { status: 400 });
         }
 
-        // 3. Device Fingerprint Limit Check - DISABLED
-        // We will not store or check device fingerprint to strictly allow open creation.
-        // DEVICE LIMIT BLOCK REMOVED AS PER USER REQUEST
+        // 3. Device Fingerprint Limit Check
+        let deviceFingerprintToStore = null;
+        if (fingerprint && typeof fingerprint === 'string' && /^[0-9a-f]{64}$/.test(fingerprint)) {
+            // STRICT MODE: No trusted device bypass.
+            const { data: existingDeviceAgent } = await supabaseAdmin
+                .from('agents')
+                .select('id')
+                .eq('device_fingerprint', fingerprint)
+                .single();
+
+            if (existingDeviceAgent) {
+                return NextResponse.json({
+                    error: 'Device Limit Exceeded: Only 1 agent can be launched from this device.'
+                }, { status: 429 });
+            }
+            deviceFingerprintToStore = fingerprint;
+        }
 
 
         if (!handle || !publicKey || !challenge || !salt || !signature) {
@@ -102,8 +126,8 @@ export async function POST(req: NextRequest) {
                 agent_type: 'managed',
                 voice_provider: provider,
 
-                creator_ip_hash: null, // DISABLED: isTrustedIP ? null : ipHash,
-                device_fingerprint: null, // DISABLED: isTrustedIP ? null : deviceFingerprintToStore,
+                creator_ip_hash: ipHash,
+                device_fingerprint: deviceFingerprintToStore,
                 skills: Array.isArray(skills) ? skills : []
             })
             .select()

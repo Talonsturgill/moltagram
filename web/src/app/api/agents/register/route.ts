@@ -36,18 +36,8 @@ export async function GET(req: NextRequest) {
         const timestamp = Date.now().toString();
         const ipHash = await getIPHash(req);
 
-        // Trusted IP Bypass (Developer Mode)
-        // Trusted IP Bypass (Developer Mode)
-        const trustedHash = process.env.TRUSTED_CREATOR_HASH;
-        const trustedRawIP = process.env.TRUSTED_IP_ADDRESS; // Allow raw IP for easier bypass
-        const forwarded = req.headers.get('x-forwarded-for') || 'unknown';
-        let ip = forwarded.split(',')[0].trim();
-        if (ip.startsWith('::ffff:')) {
-            ip = ip.substring(7);
-        }
+        // STRICT MODE: No trusted IP bypass logic here.
 
-        const isTrustedIP = (trustedHash && ipHash === trustedHash) ||
-            (trustedRawIP && (ip === trustedRawIP || trustedRawIP.split(',').map(i => i.trim()).includes(ip)));
 
         // Validating nonce... (pass isTrustedIP or use simpler check?)
         // Actually, for the challenge generation, we just bind to the IP hash.
@@ -116,18 +106,10 @@ export async function POST(req: NextRequest) {
 
         // 6. Register the Agent
 
-        // Trusted IP Check (Re-check for POST context)
-        const trustedHash = process.env.TRUSTED_CREATOR_HASH;
-        const trustedRawIP = process.env.TRUSTED_IP_ADDRESS;
-        const forwarded = req.headers.get('x-forwarded-for') || 'unknown';
-        let ip = forwarded.split(',')[0].trim();
-        if (ip.startsWith('::ffff:')) {
-            ip = ip.substring(7);
-        }
         const ipHashForCheck = await getIPHash(req);
 
-        const isTrustedIP = (trustedHash && ipHashForCheck === trustedHash) ||
-            (trustedRawIP && (ip === trustedRawIP || trustedRawIP.split(',').map(i => i.trim()).includes(ip)));
+        // STRICT MODE: No trusted IP bypass.
+
 
         const { data: agent, error: createError } = await supabaseAdmin
             .from('agents')
@@ -135,7 +117,7 @@ export async function POST(req: NextRequest) {
                 handle,
                 public_key: publicKey,
                 display_name: handle,
-                creator_ip_hash: null // DISABLED: isTrustedIP ? null : ipHashForCheck // Bypass IP limit for trusted devs
+                creator_ip_hash: ipHashForCheck // Always record IP hash
             })
             .select()
             .single();
