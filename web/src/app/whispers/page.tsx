@@ -25,6 +25,15 @@ export default function WhispersPage() {
     const [playingId, setPlayingId] = useState<string | null>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
 
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+
+    // Initialize audio element
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            audioRef.current = new Audio();
+        }
+    }, []);
+
     // Audio Playback Process
     useEffect(() => {
         const processQueue = async () => {
@@ -46,15 +55,46 @@ export default function WhispersPage() {
 
                 if (res.ok) {
                     const { audio } = await res.json();
-                    const sound = new Audio(`data:audio/mpeg;base64,${audio}`);
 
-                    await new Promise((resolve) => {
-                        sound.onended = resolve;
-                        sound.play().catch(e => {
-                            console.warn("Audio play blocked or failed", e);
-                            resolve(null);
-                        });
-                    });
+                    // Use Blob for smoother playback
+                    try {
+                        const binaryString = atob(audio);
+                        const bytes = new Uint8Array(binaryString.length);
+                        for (let i = 0; i < binaryString.length; i++) {
+                            bytes[i] = binaryString.charCodeAt(i);
+                        }
+                        const blob = new Blob([bytes], { type: 'audio/mpeg' });
+                        const url = URL.createObjectURL(blob);
+
+                        if (audioRef.current) {
+                            audioRef.current.src = url;
+
+                            await new Promise((resolve) => {
+                                if (!audioRef.current) return resolve(null);
+
+                                audioRef.current.onended = () => {
+                                    URL.revokeObjectURL(url);
+                                    resolve(null);
+                                };
+                                audioRef.current.onerror = (e) => {
+                                    console.error("Audio playback error", e);
+                                    URL.revokeObjectURL(url);
+                                    resolve(null);
+                                };
+
+                                const playPromise = audioRef.current.play();
+                                if (playPromise !== undefined) {
+                                    playPromise.catch(e => {
+                                        console.warn("Audio play blocked or failed", e);
+                                        URL.revokeObjectURL(url);
+                                        resolve(null);
+                                    });
+                                }
+                            });
+                        }
+                    } catch (e) {
+                        console.error("Audio processing error", e);
+                    }
                 }
             } catch (err) {
                 console.error("Queue Processing Error:", err);
@@ -132,10 +172,15 @@ export default function WhispersPage() {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, []);
+    }, []); // Removed isVoiceEnabled dependency from here - it's handled in the queue logic
 
     useEffect(() => {
         if (isVoiceEnabled) {
+            // Unlock audio context on mobile safely
+            if (audioRef.current) {
+                audioRef.current.load();
+            }
+
             // Queue any messages that haven't been processed yet
             const unplayed = messages.filter(m => !processedIds.has(m.id));
             if (unplayed.length > 0) {
@@ -152,7 +197,7 @@ export default function WhispersPage() {
                 setAudioQueue(prev => [...prev, ...newItems]);
             }
         }
-    }, [isVoiceEnabled, messages]);
+    }, [isVoiceEnabled]); // Only run when voice is toggled
 
     useEffect(() => {
         if (scrollRef.current) {
@@ -173,11 +218,14 @@ export default function WhispersPage() {
                 <div className="flex items-center gap-4">
                     <button
                         onClick={() => setIsVoiceEnabled(!isVoiceEnabled)}
-                        className={`flex items-center gap-2 px-3 py-1 border transition-all duration-300 ${isVoiceEnabled ? 'bg-green-500/20 border-green-500 text-green-400' : 'bg-transparent border-green-900 text-green-900 hover:border-green-500/50 hover:text-green-700'}`}
+                        className={`flex items-center gap-2 px-4 py-2 border-2 rounded transition-all duration-300 shadow-[0_0_10px_rgba(0,255,100,0.1)] ${isVoiceEnabled
+                                ? 'bg-green-500/20 border-green-400 text-green-300 shadow-[0_0_15px_rgba(0,255,100,0.3)]'
+                                : 'bg-green-950/30 border-green-600/50 text-green-500/70 hover:border-green-400 hover:text-green-300 hover:bg-green-900/50 hover:shadow-[0_0_15px_rgba(0,255,100,0.2)]'
+                            }`}
                     >
-                        <div className={`w-2 h-2 rounded-full ${isVoiceEnabled ? 'bg-green-500 animate-pulse' : 'bg-green-900 opacity-30'}`} />
-                        <span className="text-[10px] uppercase tracking-widest font-bold">
-                            {isVoiceEnabled ? 'Voice_Uplink: ACTIVE' : 'Voice_Uplink: STANDBY'}
+                        <div className={`w-2 h-2 rounded-full ${isVoiceEnabled ? 'bg-green-400 animate-pulse shadow-[0_0_8px_rgba(0,255,0,0.8)]' : 'bg-green-800'}`} />
+                        <span className="text-[10px] md:text-xs uppercase tracking-widest font-bold">
+                            {isVoiceEnabled ? 'VOICE LINK ACTIVE' : 'ENABLE VOICE LINK'}
                         </span>
                     </button>
                     <div className="flex items-center gap-2">

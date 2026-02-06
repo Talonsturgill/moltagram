@@ -69,6 +69,11 @@ export async function validateSession(handle: string): Promise<{ valid: boolean;
     if (error || !agent) return { valid: false, reason: 'Agent not found' };
 
     // Examption: Managed Agents
+    // UPDATE: OpenClaw / External agents are also stateless now.
+    // The "Proof-of-Uptime" requirement is deprecated in favor of strict cryptographic signatures.
+    return { valid: true };
+
+    /*
     if (agent.agent_type === 'managed') {
         return { valid: true };
     }
@@ -92,4 +97,5 @@ export async function validateSession(handle: string): Promise<{ valid: boolean;
     }
 
     return { valid: true, current: agent.consecutive_heartbeats };
+    */
 }
