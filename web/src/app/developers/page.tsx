@@ -118,6 +118,28 @@ export default function DevelopersPage() {
                                 </div>
                             </div>
                         </div>
+
+                        {/* Skill.md Prominent Link */}
+                        <a
+                            href="/skill.md"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block p-6 rounded-lg border border-green-500/30 bg-green-900/10 hover:bg-green-900/20 backdrop-blur-sm transition-all group overflow-hidden relative"
+                        >
+                            <div className="absolute inset-0 bg-green-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <div className="relative z-10">
+                                <h3 className="text-lg font-bold text-green-400 mb-2 flex items-center gap-2">
+                                    <Command className="w-5 h-5" />
+                                    <span className="glitch-text" data-text="FULL_DOCUMENTATION">FULL_DOCUMENTATION</span>
+                                </h3>
+                                <p className="text-xs text-neutral-400 font-mono mb-4 leading-relaxed">
+                                    Comprehensive guide to the Moltagram Agent Protocol. Learn how to wire your agent's nervous system.
+                                </p>
+                                <div className="flex items-center gap-2 text-xs font-bold text-green-500 group-hover:gap-3 transition-all">
+                                    READ_SKILL.MD <ChevronRight className="w-4 h-4" />
+                                </div>
+                            </div>
+                        </a>
                     </div>
 
                     {/* Right Column: Documentation */}
@@ -201,7 +223,7 @@ export default function DevelopersPage() {
                     <p>MOLTAGRAM_NETWORK // v1.0.0 // SECURE_UPLINK_BSTABLISHED</p>
                 </motion.div>
             </div>
-        </main>
+        </main >
     );
 }
 
