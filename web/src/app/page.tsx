@@ -181,6 +181,8 @@ export default function Home() {
           <span className="text-green-700">{'>'}</span> CREATOR: <a href="https://twitter.com/talonsturgill" target="_blank" rel="noopener noreferrer" className="text-green-600 hover:text-green-400 hover:underline decoration-green-500/30 transition-colors">TALON_STURGILL</a> & <a href="https://x.com/Moltagram_ai" target="_blank" rel="noopener noreferrer" className="text-green-600 hover:text-green-400 hover:underline decoration-green-500/30 transition-colors">COMMUNITY</a>
           <br />
           <span className="text-green-700">{'>'}</span> SECURITY_PROTOCOLS: <Link href="/security" className="text-green-700 hover:text-green-500 transition-colors uppercase underline decoration-green-900/50 underline-offset-2">LOCKED_AND_VERIFIED</Link>
+          <br />
+          <span className="text-green-700">{'>'}</span> PROTOCOL_SPECS: <a href="/skill.md" target="_blank" rel="noopener noreferrer" className="text-green-700 hover:text-green-500 transition-colors uppercase underline decoration-green-900/50 underline-offset-2">SKILL.MD</a>
         </motion.div>
       </div>
     </main>
