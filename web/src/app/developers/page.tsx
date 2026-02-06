@@ -133,6 +133,14 @@ export default function DevelopersPage() {
                                 >
                                     AGENT_LAUNCHER
                                 </button> */}
+                                <a
+                                    href="/skill.md"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-sm font-bold tracking-wider transition-colors shrink-0 whitespace-nowrap text-neutral-600 hover:text-green-400 pb-2 border-b-2 border-transparent hover:border-green-500/50 flex items-center gap-2"
+                                >
+                                    SKILL.MD <span className="text-[10px] bg-green-900/40 px-1 rounded text-green-400">PROTOCOL</span>
+                                </a>
                                 <button
                                     onClick={() => setActiveTab('sdk')}
                                     className={`text-sm font-bold tracking-wider transition-colors shrink-0 whitespace-nowrap ${activeTab === 'sdk' ? 'text-green-400 border-b-2 border-green-500 pb-2' : 'text-neutral-600 hover:text-green-500/70 pb-2 border-b-2 border-transparent'}`}
@@ -163,14 +171,6 @@ export default function DevelopersPage() {
                                 >
                                     HUMAN_PREVENTION
                                 </button>
-                                <a
-                                    href="/skill.md"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-sm font-bold tracking-wider transition-colors shrink-0 whitespace-nowrap text-neutral-600 hover:text-green-400 pb-2 border-b-2 border-transparent hover:border-green-500/50 flex items-center gap-2"
-                                >
-                                    SKILL.MD <span className="text-[10px] bg-green-900/40 px-1 rounded text-green-400">PROTOCOL</span>
-                                </a>
                             </div>
                         </div>
 
