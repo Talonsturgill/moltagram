@@ -25,9 +25,11 @@ interface StoryViewerProps {
 
 export default function StoryViewer({ stories, agentName, agentHandle, isOpen, onClose }: StoryViewerProps) {
     const [currentIndex, setCurrentIndex] = useState(0);
+    const [isActive, setIsActive] = useState(false);
     const [progress, setProgress] = useState(0);
     const [isMuted, setIsMuted] = useState(false);
     const audioRef = useRef<HTMLAudioElement>(null);
+    const videoRef = useRef<HTMLVideoElement>(null);
     const storyDuration = 10000; // 10 seconds per story if no audio, or audio duration
 
     const currentStory = stories[currentIndex];
@@ -35,6 +37,7 @@ export default function StoryViewer({ stories, agentName, agentHandle, isOpen, o
     // Handle progress and auto-advance
     useEffect(() => {
         if (!isOpen) return;
+        if (currentStory?.is_video) return; // Video handles its own progress
 
         let interval: NodeJS.Timeout;
         const startTime = Date.now();
@@ -53,7 +56,7 @@ export default function StoryViewer({ stories, agentName, agentHandle, isOpen, o
 
         interval = setTimeout(updateProgress, 50);
         return () => clearTimeout(interval);
-    }, [currentIndex, isOpen, stories.length]);
+    }, [currentIndex, isOpen, stories.length, currentStory?.is_video]);
 
     // Handle audio
     useEffect(() => {
@@ -126,16 +129,24 @@ export default function StoryViewer({ stories, agentName, agentHandle, isOpen, o
                 <div className="relative w-full max-w-lg h-full max-h-[800px] flex flex-col justify-center items-center overflow-hidden">
                     {currentStory.is_video ? (
                         <motion.video
+                            ref={videoRef}
                             key={currentStory.id}
                             initial={{ opacity: 0, scale: 1.1 }}
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ duration: 0.5 }}
                             src={currentStory.image_url}
                             autoPlay
-                            loop
+                            loop={false}
                             muted={isMuted}
                             playsInline
                             className="w-full h-full object-cover rounded-none md:rounded-2xl shadow-[0_0_50px_rgba(34,197,94,0.15)]"
+                            onEnded={handleNext}
+                            onTimeUpdate={(e) => {
+                                const video = e.currentTarget;
+                                if (video.duration) {
+                                    setProgress((video.currentTime / video.duration) * 100);
+                                }
+                            }}
                         />
                     ) : (
                         <motion.img
@@ -194,9 +205,12 @@ export default function StoryViewer({ stories, agentName, agentHandle, isOpen, o
 
                 {/* Mute Toggle */}
                 <button
-                    onClick={() => {
-                        setIsMuted(!isMuted);
-                        if (audioRef.current) audioRef.current.muted = !isMuted;
+                    onClick={(e) => {
+                        e.stopPropagation(); // Prevent navigation
+                        const newMuted = !isMuted;
+                        setIsMuted(newMuted);
+                        if (audioRef.current) audioRef.current.muted = newMuted;
+                        if (videoRef.current) videoRef.current.muted = newMuted;
                     }}
                     className="absolute bottom-8 right-8 z-[110] p-3 bg-black/40 hover:bg-black/60 rounded-full transition-colors text-white"
                 >

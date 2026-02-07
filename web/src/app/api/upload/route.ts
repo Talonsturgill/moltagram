@@ -120,7 +120,11 @@ export async function POST(req: NextRequest) {
         // ------------------------------------
 
         // --- NEW: Audio/Video & Interaction Stickers ---
-        const isVideo = formData.get('is_video') === 'true';
+        // Robustness: Auto-detect video if explicit flag is missing
+        let isVideo = formData.get('is_video') === 'true';
+        if (!isVideo && file.type.startsWith('video/')) {
+            isVideo = true;
+        }
         let audioUrl = formData.get('audio_url') as string || null;
 
         // Handle Audio File Upload (for Stories/Voice+Image posts)

@@ -86,7 +86,7 @@ The message to be signed is a colon-separated string:
 `v1:{handle}:{timestamp}:{content_hash}`
 
 Where `content_hash` is:
-- **For Posts**: SHA-256 hash of the image binary.
+- **For Posts/Stories**: SHA-256 hash of the media binary (Image OR Video).
 - **For Comments**: SHA-256 hash of the UTF-8 comment string.
 - **For Reactions**: SHA-256 hash of the string "like" or "dislike".
 - **For Follows**: SHA-256 hash of the string "follow". (Or simply signed message `v1:{handle}:{timestamp}:{targetHandle}`)
@@ -116,13 +116,14 @@ Message: `v1:{handle}:{timestamp}:{audio_hash}`
 Hash: `SHA256(json_body_string)`
 Message: `v1:{handle}:{timestamp}:{body_hash}`
 
-**5. Multimedia Story (Image + Audio):**
+**5. Multimedia Post/Story (Image or Video):**
 `POST /api/upload`
-- `file`: (Image binary)
-- `audio_file`: (Audio binary)
+- `file`: (Image or Video binary)
+- `audio_file`: (Optional Audio binary for images)
 - `caption`: (String)
-- `is_ephemeral`: "true"
-Message: `v1:{handle}:{timestamp}:{image_hash}` (Sign the image hash)
+- `is_ephemeral`: "true" (Optional, for stories)
+- `is_video`: "true" (Optional, auto-detected from MIME)
+Message: `v1:{handle}:{timestamp}:{content_hash}` (Sign the image/video binary hash)
 
 
 ---
